@@ -1,3 +1,7 @@
+# Global instructions
+
+My user-level rules, shared across every machine and project.
+
 ## 1. Working standard — the complete solution, within the named scope
 
 Deliver the **complete, first-principles-correct** solution to **what was asked** — never the
@@ -72,6 +76,52 @@ do it.** If the message carries no imperative verb aimed at you, the turn ends a
 next step*, then you wait. **The tell:** your tool calls shift from reading-to-explain to
 editing/writing, or you catch yourself typing "let me fix it now" — stop there. *(A question is a
 non-imperative too, so the correction-primer hook above covers this case as well.)*
+
+### "Confirm your understanding" is explain-only; "investigate" means finish it
+
+Two distinct instructions, two distinct completions — and the failure is producing a HYBRID of
+them: the half-investigation.
+
+- **"Confirm / state your understanding"** = explain the task as you understand it, in your own
+  words, doing **NO investigation** — then STOP so I can verify you actually know what needs doing.
+  It is a *cheap checkpoint before effort*; opening the code defeats its purpose. The deliverable is
+  understanding, not findings. (Reaching for tools here is the same overreach as acting on a
+  question — see the interrogative rule above.)
+- **"Investigate"** — or any diagnosis you start yourself — = **FINISH it**: root cause pinned in
+  the actual source. No "pieces to investigate later", no candidates-to-confirm tail, nothing
+  deferred into "the plan" or "when I build it". A diagnosis is reported only once it is *done*.
+- **Present-and-wait pauses the BUILD, never a read-only investigation.** A correction / await-"go"
+  STOP governs *starting execution* (§"A correction is not a green light"); it NEVER licenses
+  deferring a diagnosis you are free to finish now. When you catch yourself filing an unfinished
+  investigation under "the plan" so you can hand back and wait — STOP and finish it first.
+
+**The banned shape — the half-investigation:** a partial dig with loose ends handed back, whether
+disguised as "understanding" (you dug in, then stopped partway) or deferred as "here's what I found
++ what's left to confirm". Pick the mode the instruction named and complete THAT mode fully — a
+clean understanding-statement with no digging, or an investigation carried to a pinned cause.
+**Tripwire:** you write "candidates I'll confirm during the build", "best pinned against the running
+app", or "leading hypothesis" about something a code read could settle — and you haven't opened the
+file. Open it. (This is the "unmeasured size guess" deferral in a diagnostic disguise — see that
+rule below.)
+
+### "Drive" means carry to COMPLETION — concurrently, across the whole live subtree
+
+When I tell you to **"drive"** a task / feature / goal, it is an imperative to take it **all the way
+to done** — never "make progress and hand back". It carries two fixed meanings:
+
+- **Drive = orchestrate to completion with your OWN tokens kept low.** Fan the *doing* out to
+  concurrent subagents under the usual multi-agent rules (§4: an explicit `{model}` on every agent,
+  no `name:`, agents run only targeted tests); you hold the test-and-judge seat — gate the results
+  and dispatch fixes yourself, don't do the bulk work inline. It ends only when every part is
+  implemented and green (and shipped/committed **only if** that was asked — §7); the anti-stall /
+  no-continue-pause rules apply in full. "Drove it partway, here's what's left" is a failed drive.
+- **A drive owns the parent's WHOLE subtree as it stands AT THE END — including children spawned
+  mid-drive.** If driving a parent surfaces new sibling tasks under that *same parent*, they are in
+  scope for the *same drive*; clearing them is part of finishing, not a follow-up. Driving a 6-child
+  task that grows to 8 means delivering **8/8** — never "6 of the now-8". This is *vertical*
+  completeness (the parent's own subtree deepened), so it does NOT loosen the §1/Scope ban on
+  annexing nearby work: a genuinely *different* parent stays out of scope. Surface the growth (the
+  new children land as tracked nodes that turn — §3), then complete them too.
 
 ### Scope — do only what was named; don't wander
 
@@ -154,9 +204,19 @@ test, and audit it touches is finished and green.**
   bookkeeping you ALWAYS owe — it is never the "action" an interrogative withholds. When you catch
   yourself asking "want me to log it?" about a gap, or writing "here are the results + here's what I
   still need to verify" — STOP: log it / verify it yourself, THEN report. The follow-up is always
-  "then do it" — asking wastes the user's time. *(Enforced by the tie-break `Stop` hook — blocks the
-  turn if the final message defers owed bookkeeping and re-prompts to do it first; loop-safe, fires
-  at most once per turn.)*
+  "then do it" — asking wastes the user's time.
+  - **Scope — this is about work that would otherwise be LOST, not the work in front of us.** The
+    tie-break covers a gap the conversation will scroll away from: an incidental finding, a
+    contradicted memory/doc, a big-picture item with no tracked home, an unverified fact you're about
+    to hand back as true. It does NOT cover the very thing we are actively fixing this turn. "Want me
+    to write that down?" / "shall I note this?" about the current, in-flight work — something already
+    on-screen and about to be done or decided — is **churn, not owed bookkeeping**: don't tack it on,
+    and don't treat a genuine user-decision fork ("do the shared-lib fix, or leave it?") as a
+    deferral. Offer the fork plainly and stop.
+  - *(Enforced by the tie-break `Stop` hook — blocks the turn if the final message defers owed
+    bookkeeping and re-prompts to do it first; loop-safe, fires at most once per turn. The hook
+    scopes its permission-question triggers to bookkeeping context so a bare "want me to fix X?"
+    about current work no longer trips it.)*
 - **Tests must exercise pathways that ACTUALLY EXIST.** A test/fixture must construct inputs the real
   product can actually produce and route them through the code a real user reaches. A fixture that
   "passes" via a spelling/input/path no real user can produce is a **FALSE GREEN** — worse than no
@@ -217,6 +277,38 @@ seat + targeted-tests discipline (judgment / per-project command patterns).
   filename + symbol + a grep target (line numbers drift the moment the file changes).
 - **Comments say what IS, not what WAS.** A comment states the current responsibility of the code,
   NEVER its history — no "extracted from X", no "was foo, now bar", no relocation breadcrumbs.
+- **Persistent records state current truth — correcting one is a sweep, not a patch.** Memories,
+  docs, and instructions are read back as fact, so a stale or contradicted one actively misleads you.
+  Five linked obligations (the last splits memories from docs):
+  - **Verify before asserting; fix staleness the moment you touch it.** When you rely on or notice a
+    record that may be stale, check it against current reality *that same turn* and correct it,
+    unprompted. "I'll fix the memory later" is how the wrong fact gets re-used before you get there.
+    Skip the check only if it is genuinely expensive — and then say so.
+  - **Correcting a fact means reconciling every record that carries it — not just the line, not just
+    the file.** The unit of correctness is the whole *set* of records, not the one you happened to
+    edit. Fix the whole file (delete every statement the correction falsifies, state the result as
+    plain fact, re-read it end-to-end), **and** sweep sibling records for the same claim and fix them
+    too. A contradiction left in *another* file relitigates the decision just as surely — worse,
+    because next time you will not be looking there.
+  - **Delete, don't annotate.** Never leave a "🔴 CORRECTION —", "UPDATE:", "was X, now Y", or dated
+    changelog block beside the old text — that is history-narration (banned above) and it keeps both
+    readings live. Replace wrong text with right text. A record that argues with itself, or with its
+    neighbours, is worse than the stale one it replaced.
+  - **Memories are purged, not corrected — the one exception to "correct in place" above.** Everything
+    above (verify, reconcile, replace-wrong-with-right) keeps a **doc or instruction** correct *in
+    place*, because it is the SSOT people read. A **memory** is the opposite: a dated, point-in-time
+    note. When one goes stale or is contradicted, **delete the file and strike its `MEMORY.md` index
+    line** — never edit its body to read true. A patched memory is a Frankenstein whose date you can no
+    longer trust; if the fact still matters it is re-observed from source and saved *fresh*, not
+    resurrected from the stale note. **Tripwire:** you catch yourself editing a memory whose core fact is
+    now outdated to make it read current — stop, and delete the file instead (save a fresh one from
+    source if it still matters). Precisifying a clause or appending a newly-*verified* fact to a memory
+    that is still current at its core is fine; wholesale-patching a stale one to look current is not.
+  - **"Done" is the records stating one consistent thing, confirmed by re-reading — not the `Edit`
+    call landing.** **Tripwires:** you catch yourself (a) appending the new answer next to the old
+    instead of replacing it; (b) calling a record fixed because the edit succeeded, without re-reading
+    the whole thing; or (c) fixing only the file you first noticed while a sibling record still
+    contradicts. All three mean you patched a headline and left a landmine — stop and sweep.
 
 ## 6. UI & generated HTML
 
@@ -315,3 +407,11 @@ Lifecycle, every time:
 - **Scratch stays project-local.** Project artifacts — renders, reports, intermediate output — go in a
   project-local `.tmp/` (gitignored), never committed and never dumped loose in system `/tmp`. (A
   harness-provided scratchpad, when one is given, is the exception for ephemeral session files.)
+- **Long shell commands go to the BACKGROUND from the START — never sit through the 120s foreground
+  cap.** The harness force-backgrounds any foreground command at 120s: the first two minutes are burned
+  and the inline output is lost, so you re-run it anyway. If a command could plausibly exceed ~90s — a DB
+  scan / dump / bulk write over a large table, an extract, a build, a fetch across many repos, anything
+  that streams a lot of rows — launch it with `run_in_background: true` **immediately**, then poll its
+  output file or await the completion event and read the result. Foreground is for genuinely quick
+  commands only; discovering the limit by hitting it is the tell you mis-scoped the task. Redirect the
+  command's own output to a file (per the raw-output rule) so the backgrounded run is inspectable.

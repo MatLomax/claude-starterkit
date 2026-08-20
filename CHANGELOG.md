@@ -1,0 +1,44 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+## [0.3.0] - 2026-08-20
+
+### Added
+
+- CHANGELOG.md, following the Keep a Changelog format.
+- Ruleset preamble to `CLAUDE.md`.
+- `CLAUDE.md` §2 — "Confirm your understanding is explain-only; investigate means finish it": bans the half-investigation.
+- `CLAUDE.md` §2 — "Drive means carry to COMPLETION": defines a "drive" as orchestrate-to-done owning the whole live subtree.
+- `CLAUDE.md` §3 tie-break — a Scope sub-bullet distinguishing owed bookkeeping (work that would be lost) from churn about in-flight work.
+- `CLAUDE.md` §5 — "Persistent records state current truth — correcting one is a sweep, not a patch": five linked obligations on memories, docs, and instructions.
+- `CLAUDE.md` §10 — "Long shell commands go to the BACKGROUND from the START": the 120s foreground-cap rule.
+
+### Changed
+
+- Synced the packaged `CLAUDE.md` ruleset up to the maintained user-level version (machine-specific homelab import excluded).
+
+## [0.2.0] - 2026-08-07
+
+### Added
+
+- User-level `CLAUDE.md` ruleset (working standards + interaction rules), installed to `~/.claude/CLAUDE.md`.
+- Nine Claude Code hooks wired into `settings.json`:
+  - `correction-primer.py` (UserPromptSubmit) — nudges when a message reads as a correction/question rather than a start-imperative.
+  - `commit-style-primer.py` (UserPromptSubmit) — injects a repo's `.git/COMMIT_STYLE.md` when you ask to commit.
+  - `icon-reminder.py` (UserPromptSubmit) — reminds to copy real icon-library glyphs, not hand-draw them.
+  - `deny-askuserquestion.py` (PreToolUse) — blocks the `AskUserQuestion` tool.
+  - `agent-guard.py` (PreToolUse) — blocks an `Agent` spawn with no explicit `model` or a `name:`.
+  - `deny-artifact.py` (PreToolUse) — blocks publishing to the `Artifact` tool.
+  - `git-guard.py` (PreToolUse) — blocks broad staging and whole-tree mutations.
+  - `nul-guard.py` (PreToolUse) — blocks a `Write`/`Edit` whose content carries a NUL/stray control byte.
+  - `tie-break-guard.py` (Stop) — blocks turn-end if the reply defers owed bookkeeping.
+- `attribution` setting — sets `{commit:"", pr:"", sessionUrl:false}` to strip AI attribution from commits/PRs, only when not already configured.
+- Status line for Unix (`statusline-command.sh`) and Windows (`statusline-command.ps1`), rendering `Model · effort · branch[*] · project · context · <5h bar> · <7d bar>` with rate-limit bars and burn-rate labels.
+- Installers for Unix (`install.sh`) and Windows (`install.ps1`) — idempotent, back up existing `CLAUDE.md`/`settings.json`, merge into `settings.json` without clobbering, and honour `$CLAUDE_CONFIG_DIR`.
+- Documentation: `README.md`, `INSTRUCTIONS.md`, and `INSTRUCTIONS-windows.md`.
