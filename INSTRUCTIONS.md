@@ -10,9 +10,10 @@ Two ways to install — the automated script, or the manual steps. Either is fin
 ./install.sh
 ```
 
-Then **restart Claude Code** (or start a fresh session) so the hooks load. The script backs up any
-existing `~/.claude/CLAUDE.md` and `~/.claude/settings.json`, and merges into `settings.json` without
-touching your other settings. Re-running is safe.
+Then **restart Claude Code** (or start a fresh session) so the hooks load. The script installs the
+ruleset as `~/.claude/CLAUDE.starterkit.md` and ensure-appends a single `@./CLAUDE.starterkit.md`
+import to your `~/.claude/CLAUDE.md` (never overwriting it), backs up `~/.claude/settings.json`, and
+merges into `settings.json` without touching your other settings. Re-running is safe.
 
 ---
 
@@ -20,12 +21,14 @@ touching your other settings. Re-running is safe.
 
 Let `CFG` be your Claude config dir: `~/.claude` (or `$CLAUDE_CONFIG_DIR` if you set one).
 
-**1. Install the ruleset.** Back up any existing file, then copy:
+**1. Install the ruleset and import it.** Copy the ruleset as a separate file, then ensure your
+`CLAUDE.md` imports it — this never overwrites your own `CLAUDE.md`:
 
 ```bash
 mkdir -p "$CFG/hooks"
-[ -f "$CFG/CLAUDE.md" ] && cp "$CFG/CLAUDE.md" "$CFG/CLAUDE.md.bak"
-cp CLAUDE.md "$CFG/CLAUDE.md"
+cp CLAUDE.starterkit.md "$CFG/CLAUDE.starterkit.md"
+grep -qF '@./CLAUDE.starterkit.md' "$CFG/CLAUDE.md" 2>/dev/null \
+  || printf '\n%s\n' '@./CLAUDE.starterkit.md' >> "$CFG/CLAUDE.md"
 ```
 
 **2. Install the hooks and the statusline.** (The statusline needs `jq` + `awk` at render time —
@@ -47,6 +50,15 @@ commands.
 {
   "attribution": { "commit": "", "pr": "", "sessionUrl": false },
   "statusLine": { "type": "command", "command": "bash $HOME/.claude/statusline-command.sh" },
+  "env": { "DO_NOT_TRACK": "1", "ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-opus-4-8" },
+  "enableArtifact": false,
+  "includeCoAuthoredBy": false,
+  "feedbackDrafts": "off",
+  "promptSuggestionEnabled": false,
+  "remoteControlAtStartup": false,
+  "askUserQuestionTimeout": "never",
+  "worktree": { "baseRef": "fresh" },
+  "effortLevel": "high",
   "hooks": {
     "UserPromptSubmit": [
       { "hooks": [ { "type": "command", "command": "python3 $HOME/.claude/hooks/icon-reminder.py" } ] },
@@ -56,7 +68,6 @@ commands.
     "PreToolUse": [
       { "matcher": "AskUserQuestion", "hooks": [ { "type": "command", "command": "python3 $HOME/.claude/hooks/deny-askuserquestion.py" } ] },
       { "matcher": "Agent",           "hooks": [ { "type": "command", "command": "python3 $HOME/.claude/hooks/agent-guard.py" } ] },
-      { "matcher": "Artifact",        "hooks": [ { "type": "command", "command": "python3 $HOME/.claude/hooks/deny-artifact.py" } ] },
       { "matcher": "Bash",            "hooks": [ { "type": "command", "command": "python3 $HOME/.claude/hooks/git-guard.py" } ] },
       { "matcher": "Write|Edit",      "hooks": [ { "type": "command", "command": "python3 $HOME/.claude/hooks/nul-guard.py" } ] }
     ],
@@ -71,6 +82,9 @@ commands.
   Skip it if you already have your own `attribution` setting.
 - `statusLine` renders the model / effort / branch / project / context / rate-limit-bar status line.
   Skip it if you already have your own `statusLine` setting.
+- The `env` pins + config defaults reinforce the ruleset (telemetry off; `opus` → Opus 4.8; the
+  Artifact tool off; no AI co-author line; etc.). The installer sets each only if you haven't chosen
+  your own — when pasting manually, drop any you don't want.
 
 **4. Restart Claude Code.** The hooks load at session start.
 
@@ -78,7 +92,8 @@ commands.
 
 ## Uninstall
 
-Restore the `CLAUDE.md.bak` / `settings.json.bak` you backed up, and delete the hook scripts from
+Delete `$CFG/CLAUDE.starterkit.md` and remove the `@./CLAUDE.starterkit.md` line from
+`$CFG/CLAUDE.md`, restore the `settings.json.bak` you backed up, and delete the hook scripts from
 `$CFG/hooks/`.
 
 ## What each piece does

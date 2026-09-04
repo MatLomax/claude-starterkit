@@ -1,7 +1,8 @@
 <#
 Installs a shared Claude Code user-level ruleset + guardrail hooks (Windows / PowerShell).
 
-  - writes  %USERPROFILE%\.claude\CLAUDE.md      (backs up any existing one)
+  - installs %USERPROFILE%\.claude\CLAUDE.starterkit.md and ensure-appends an idempotent
+    `@./CLAUDE.starterkit.md` import to %USERPROFILE%\.claude\CLAUDE.md (never overwrites it)
   - installs %USERPROFILE%\.claude\hooks\*.py    (the guardrail + primer hooks)
   - merges hooks + AI-attribution suppression + env (DO_NOT_TRACK, opus-alias
     pin) + opinionated config defaults into settings.json, idempotently and
@@ -38,14 +39,19 @@ Write-Host "using Python command: $PyCmd"
 
 New-Item -ItemType Directory -Force -Path (Join-Path $ClaudeDir "hooks") | Out-Null
 
-# 1. CLAUDE.md — back up any existing file first.
-$dstClaudeMd = Join-Path $ClaudeDir "CLAUDE.md"
-if (Test-Path $dstClaudeMd) {
-  Copy-Item $dstClaudeMd "$dstClaudeMd.bak-$Stamp"
-  Write-Host "backed up existing CLAUDE.md -> CLAUDE.md.bak-$Stamp"
+# 1. Ruleset — install as CLAUDE.starterkit.md and import it from your CLAUDE.md.
+#    Your CLAUDE.md is never overwritten; we only ensure ONE @import line is present.
+Copy-Item (Join-Path $Here "CLAUDE.starterkit.md") (Join-Path $ClaudeDir "CLAUDE.starterkit.md") -Force
+Write-Host "installed CLAUDE.starterkit.md"
+$importLine = "@./CLAUDE.starterkit.md"
+$claudeMd = Join-Path $ClaudeDir "CLAUDE.md"
+if ((Test-Path $claudeMd) -and (Select-String -Path $claudeMd -SimpleMatch -Pattern $importLine -Quiet)) {
+  Write-Host "CLAUDE.md already imports CLAUDE.starterkit.md"
+} else {
+  if ((Test-Path $claudeMd) -and ((Get-Item $claudeMd).Length -gt 0)) { Add-Content -Path $claudeMd -Value "" }
+  Add-Content -Path $claudeMd -Value $importLine
+  Write-Host "appended '$importLine' to CLAUDE.md"
 }
-Copy-Item (Join-Path $Here "CLAUDE.md") $dstClaudeMd
-Write-Host "installed CLAUDE.md"
 
 # 2. hooks
 $hookSrc = Join-Path $Here "hooks\*.py"

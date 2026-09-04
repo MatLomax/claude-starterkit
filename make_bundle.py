@@ -3,7 +3,7 @@
 
 Single-sources the version from CHANGELOG.md (the first released `## [x.y.z]`
 heading) so the zip name can never drift from the changelog. Produces a flat
-archive — the payload sits at the zip root (hooks/, CLAUDE.md, install.sh, ...) —
+archive — the payload sits at the zip root (hooks/, CLAUDE.starterkit.md, install.sh, ...) —
 so a Windows "Extract All" yields one folder named after the zip, with no double
 nesting.
 
@@ -24,7 +24,7 @@ BUNDLE = "claude-starterkit"
 # The installable payload — exactly what the installers lay down. Dev/release
 # tooling (this script), VCS metadata, dist/ and .gitignore are excluded.
 TOP_FILES = [
-    "CLAUDE.md", "CHANGELOG.md", "README.md",
+    "CLAUDE.starterkit.md", "CHANGELOG.md", "README.md",
     "INSTRUCTIONS.md", "INSTRUCTIONS-windows.md",
     "install.sh", "install.ps1",
     "statusline-command.sh", "statusline-command.ps1",

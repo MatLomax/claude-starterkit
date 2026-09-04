@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Installs a shared Claude Code user-level ruleset + guardrail hooks.
 #
-#   - writes  ~/.claude/CLAUDE.md          (backs up any existing one)
+#   - installs ~/.claude/CLAUDE.starterkit.md and ensure-appends an idempotent
+#     `@./CLAUDE.starterkit.md` import to ~/.claude/CLAUDE.md (never overwrites it)
 #   - installs ~/.claude/hooks/*.py        (the guardrail + primer hooks)
 #   - merges hooks + AI-attribution suppression + env (DO_NOT_TRACK, opus-alias
 #     pin) + opinionated config defaults into ~/.claude/settings.json,
@@ -12,17 +13,21 @@ set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
-STAMP="$(date +%Y%m%d-%H%M%S)"
 
 mkdir -p "$CLAUDE_DIR/hooks"
 
-# 1. CLAUDE.md — back up any existing file first.
-if [ -f "$CLAUDE_DIR/CLAUDE.md" ]; then
-  cp "$CLAUDE_DIR/CLAUDE.md" "$CLAUDE_DIR/CLAUDE.md.bak-$STAMP"
-  echo "backed up existing CLAUDE.md -> CLAUDE.md.bak-$STAMP"
+# 1. Ruleset — install as CLAUDE.starterkit.md and import it from your CLAUDE.md.
+#    Your CLAUDE.md is never overwritten; we only ensure ONE @import line is present.
+cp "$HERE/CLAUDE.starterkit.md" "$CLAUDE_DIR/CLAUDE.starterkit.md"
+echo "installed CLAUDE.starterkit.md"
+IMPORT_LINE="@./CLAUDE.starterkit.md"
+CLAUDE_MD="$CLAUDE_DIR/CLAUDE.md"
+if [ -f "$CLAUDE_MD" ] && grep -qF "$IMPORT_LINE" "$CLAUDE_MD"; then
+  echo "CLAUDE.md already imports CLAUDE.starterkit.md"
+else
+  { [ -s "$CLAUDE_MD" ] && printf '\n'; printf '%s\n' "$IMPORT_LINE"; } >> "$CLAUDE_MD"
+  echo "appended '$IMPORT_LINE' to CLAUDE.md"
 fi
-cp "$HERE/CLAUDE.md" "$CLAUDE_DIR/CLAUDE.md"
-echo "installed CLAUDE.md"
 
 # 2. hooks
 cp "$HERE"/hooks/*.py "$CLAUDE_DIR/hooks/"

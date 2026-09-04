@@ -21,7 +21,8 @@ Then **restart Claude Code** (or start a fresh session) so the hooks load. The s
 
 - detects your Python command (`py -3`, `python`, or `python3`) and bakes the working one into the
   hook commands — Windows rarely has a bare `python3`;
-- backs up any existing `CLAUDE.md` and `settings.json` (timestamped `.bak-…`);
+- installs the ruleset as `CLAUDE.starterkit.md` and appends a single `@./CLAUDE.starterkit.md`
+  import to your `CLAUDE.md` (never overwriting it); backs up `settings.json` (timestamped `.bak-…`);
 - merges into `settings.json` without touching your other settings.
 
 Re-running is safe (idempotent). It honours `$env:CLAUDE_CONFIG_DIR` if set, else
@@ -34,13 +35,17 @@ Re-running is safe (idempotent). It honours `$env:CLAUDE_CONFIG_DIR` if set, els
 Let `CFG` be your Claude config dir: `%USERPROFILE%\.claude` (or `$env:CLAUDE_CONFIG_DIR` if you set
 one). In PowerShell:
 
-**1. Install the ruleset.** Back up any existing file, then copy:
+**1. Install the ruleset and import it.** Copy the ruleset as a separate file, then ensure your
+`CLAUDE.md` imports it — this never overwrites your own `CLAUDE.md`:
 
 ```powershell
 $CFG = if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR } else { Join-Path $env:USERPROFILE ".claude" }
 New-Item -ItemType Directory -Force -Path (Join-Path $CFG "hooks") | Out-Null
-if (Test-Path (Join-Path $CFG "CLAUDE.md")) { Copy-Item (Join-Path $CFG "CLAUDE.md") (Join-Path $CFG "CLAUDE.md.bak") }
-Copy-Item .\CLAUDE.md (Join-Path $CFG "CLAUDE.md")
+Copy-Item .\CLAUDE.starterkit.md (Join-Path $CFG "CLAUDE.starterkit.md")
+$claudeMd = Join-Path $CFG "CLAUDE.md"
+if (-not ((Test-Path $claudeMd) -and (Select-String -Path $claudeMd -SimpleMatch -Pattern '@./CLAUDE.starterkit.md' -Quiet))) {
+  Add-Content -Path $claudeMd -Value "`n@./CLAUDE.starterkit.md"
+}
 ```
 
 **2. Install the hooks and the statusline.** (No `chmod` needed on Windows. The statusline is a
@@ -63,6 +68,15 @@ don't replace what's there).
 {
   "attribution": { "commit": "", "pr": "", "sessionUrl": false },
   "statusLine": { "type": "command", "command": "pwsh -NoProfile -File \"C:/Users/YOU/.claude/statusline-command.ps1\"" },
+  "env": { "DO_NOT_TRACK": "1", "ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-opus-4-8" },
+  "enableArtifact": false,
+  "includeCoAuthoredBy": false,
+  "feedbackDrafts": "off",
+  "promptSuggestionEnabled": false,
+  "remoteControlAtStartup": false,
+  "askUserQuestionTimeout": "never",
+  "worktree": { "baseRef": "fresh" },
+  "effortLevel": "high",
   "hooks": {
     "UserPromptSubmit": [
       { "hooks": [ { "type": "command", "command": "py -3 C:/Users/YOU/.claude/hooks/icon-reminder.py" } ] },
@@ -72,7 +86,6 @@ don't replace what's there).
     "PreToolUse": [
       { "matcher": "AskUserQuestion", "hooks": [ { "type": "command", "command": "py -3 C:/Users/YOU/.claude/hooks/deny-askuserquestion.py" } ] },
       { "matcher": "Agent",           "hooks": [ { "type": "command", "command": "py -3 C:/Users/YOU/.claude/hooks/agent-guard.py" } ] },
-      { "matcher": "Artifact",        "hooks": [ { "type": "command", "command": "py -3 C:/Users/YOU/.claude/hooks/deny-artifact.py" } ] },
       { "matcher": "Bash",            "hooks": [ { "type": "command", "command": "py -3 C:/Users/YOU/.claude/hooks/git-guard.py" } ] },
       { "matcher": "Write|Edit",      "hooks": [ { "type": "command", "command": "py -3 C:/Users/YOU/.claude/hooks/nul-guard.py" } ] }
     ],
@@ -88,6 +101,9 @@ don't replace what's there).
 - `statusLine` renders the model / effort / branch / project / context / rate-limit-bar status line.
   If `pwsh` (PowerShell 7+) isn't installed, use `powershell` instead of `pwsh` in the command. Skip
   the whole line if you already have your own `statusLine` setting.
+- The `env` pins + config defaults reinforce the ruleset (telemetry off; `opus` → Opus 4.8; the
+  Artifact tool off; no AI co-author line; etc.). The installer sets each only if you haven't chosen
+  your own — when pasting manually, drop any you don't want.
 
 **4. Restart Claude Code.** The hooks load at session start.
 
@@ -107,8 +123,9 @@ don't replace what's there).
 
 ## Uninstall
 
-Restore the `CLAUDE.md.bak-…` / `settings.json.bak-…` you backed up, and delete the hook scripts
-from `%USERPROFILE%\.claude\hooks\`.
+Delete `%USERPROFILE%\.claude\CLAUDE.starterkit.md` and remove the `@./CLAUDE.starterkit.md` line
+from `%USERPROFILE%\.claude\CLAUDE.md`, restore the `settings.json.bak-…` you backed up, and delete
+the hook scripts from `%USERPROFILE%\.claude\hooks\`.
 
 ## What each piece does
 

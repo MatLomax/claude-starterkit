@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-09-04
+
+### Changed
+
+- **Composable install.** The ruleset now installs as a separate `~/.claude/CLAUDE.starterkit.md` and is pulled into context by an idempotent `@./CLAUDE.starterkit.md` import that the installer ensure-appends to your `~/.claude/CLAUDE.md`. The installer **no longer overwrites (or backs up and replaces) your `CLAUDE.md`** — it only guarantees the one import line, so re-running never duplicates it and your own rules are layered with, not clobbered by, the starterkit's.
+- Documented the `settings.json` `env` pins and config defaults the installer seeds (previously undocumented) in `README.md` and both `INSTRUCTIONS` guides, and rewrote the install steps for the import-based model.
+
+### Fixed
+
+- Removed lingering `deny-artifact.py` references that 0.3.2 missed: the `README.md` hook roster (count 9 → 8) and the manual-install settings examples in `INSTRUCTIONS.md` / `INSTRUCTIONS-windows.md`. The hook itself was dropped in 0.3.2; these docs still told manual installers to wire it.
+
 ## [0.3.2] - 2026-09-04
 
 ### Added

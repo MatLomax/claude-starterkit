@@ -16,14 +16,18 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
 Then **restart Claude Code** (or start a fresh session) so the hooks load. Re-running is safe
-(idempotent). It **backs up** any existing `~/.claude/CLAUDE.md` and `~/.claude/settings.json`
-(timestamped `.bak-…`) and **merges** into `settings.json` without clobbering your other config.
-Honours `$CLAUDE_CONFIG_DIR` if set, else `~/.claude`.
+(idempotent). It installs the ruleset as a separate `~/.claude/CLAUDE.starterkit.md` and
+ensure-appends a single `@./CLAUDE.starterkit.md` import to your `~/.claude/CLAUDE.md` — **your own
+`CLAUDE.md` is never overwritten**. It **backs up** `~/.claude/settings.json` (timestamped `.bak-…`)
+and **merges** into it without clobbering your other config. Honours `$CLAUDE_CONFIG_DIR` if set,
+else `~/.claude`.
 
 ## What it installs
 
-- **`CLAUDE.md`** → `~/.claude/CLAUDE.md` — the user-level ruleset.
-- **9 hooks** → `~/.claude/hooks/`, wired into `settings.json`:
+- **`CLAUDE.starterkit.md`** → `~/.claude/CLAUDE.starterkit.md` — the user-level ruleset, pulled into
+  context by an idempotent `@./CLAUDE.starterkit.md` line appended to your `~/.claude/CLAUDE.md`
+  (your own `CLAUDE.md` is left intact — the starterkit layers on top of it).
+- **8 hooks** → `~/.claude/hooks/`, wired into `settings.json`:
   - `correction-primer.py` (UserPromptSubmit) — nudges you when a message reads as a
     correction/question, not a start-imperative.
   - `commit-style-primer.py` (UserPromptSubmit) — injects a repo's `.git/COMMIT_STYLE.md` when you
@@ -31,7 +35,6 @@ Honours `$CLAUDE_CONFIG_DIR` if set, else `~/.claude`.
   - `icon-reminder.py` (UserPromptSubmit) — reminds to copy real icon-library glyphs, not hand-draw.
   - `deny-askuserquestion.py` (PreToolUse) — blocks the `AskUserQuestion` tool (ask in-message).
   - `agent-guard.py` (PreToolUse) — blocks an `Agent` spawn with no explicit `model` or a `name:`.
-  - `deny-artifact.py` (PreToolUse) — blocks publishing to the `Artifact` tool.
   - `git-guard.py` (PreToolUse) — blocks broad staging (`git add -A/./-u`, `commit -a`) and
     whole-tree mutations (`reset --hard`, `checkout .`, `restore .`, `clean -f`, create-form `stash`).
   - `nul-guard.py` (PreToolUse) — blocks a `Write`/`Edit` whose content carries a NUL/stray control byte.
@@ -46,6 +49,11 @@ Honours `$CLAUDE_CONFIG_DIR` if set, else `~/.claude`.
   rate is on pace to hit the cap before reset (red at ≥98% used). The two scripts are ports of each
   other and render identically. **Deps:** Unix needs `jq` + `awk` (standard); the Windows `.ps1` is
   native PowerShell and needs nothing extra.
+- **`settings.json` defaults** (merged in, each only if you haven't set your own value): `env` gets
+  `DO_NOT_TRACK=1` and `ANTHROPIC_DEFAULT_OPUS_MODEL=claude-opus-4-8` (pins the `opus` alias to Opus
+  4.8); plus `enableArtifact:false` (turns the Artifact tool off), `includeCoAuthoredBy:false`,
+  `feedbackDrafts:off`, `promptSuggestionEnabled:false`, `remoteControlAtStartup:false`,
+  `askUserQuestionTimeout:never`, `worktree.baseRef:fresh`, and `effortLevel:high`.
 
 ## Notes
 
@@ -53,4 +61,9 @@ Honours `$CLAUDE_CONFIG_DIR` if set, else `~/.claude`.
   holds under those modes) and context injection, never a permission prompt.
 - Heuristics (git flag matching, correction/question detection) are pragmatic — tune the scripts in
   `~/.claude/hooks/` to taste.
-- To uninstall: restore the `.bak-…` files and remove the hook entries from `settings.json`.
+- To uninstall: delete `~/.claude/CLAUDE.starterkit.md` and remove the `@./CLAUDE.starterkit.md`
+  line from `~/.claude/CLAUDE.md`, restore the `settings.json.bak-…`, and delete the hook scripts.
+- **Upgrading from ≤ 0.3.1?** Those versions installed the ruleset *inline* as `~/.claude/CLAUDE.md`.
+  This version installs it as `CLAUDE.starterkit.md` + an import, so after upgrading, delete the old
+  inline ruleset from your `~/.claude/CLAUDE.md` (keep the `@./CLAUDE.starterkit.md` line) so it isn't
+  loaded twice.
