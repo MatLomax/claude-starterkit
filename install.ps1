@@ -3,8 +3,9 @@ Installs a shared Claude Code user-level ruleset + guardrail hooks (Windows / Po
 
   - writes  %USERPROFILE%\.claude\CLAUDE.md      (backs up any existing one)
   - installs %USERPROFILE%\.claude\hooks\*.py    (the guardrail + primer hooks)
-  - merges hooks + AI-attribution suppression into settings.json, idempotently
-    and WITHOUT clobbering your existing settings.
+  - merges hooks + AI-attribution suppression + env (DO_NOT_TRACK, opus-alias
+    pin) + opinionated config defaults into settings.json, idempotently and
+    WITHOUT clobbering your existing settings.
 
 Safe to re-run. Restart Claude Code (or start a fresh session) afterwards for the hooks to load.
 Honours $env:CLAUDE_CONFIG_DIR if set, else %USERPROFILE%\.claude.
@@ -83,7 +84,6 @@ WANT = {
     "PreToolUse": [
         ("AskUserQuestion", "deny-askuserquestion.py"),
         ("Agent", "agent-guard.py"),
-        ("Artifact", "deny-artifact.py"),
         ("Bash", "git-guard.py"),
         ("Write|Edit", "nul-guard.py"),
     ],
@@ -114,10 +114,32 @@ if "attribution" not in cfg:
 if "statusLine" not in cfg:
     cfg["statusLine"] = {"type": "command", "command": sl_cmd}
 
+# env — opt out of telemetry and pin the `opus` alias to Opus 4.8. Per-key, so
+# any value you've already chosen is left untouched.
+env = cfg.setdefault("env", {})
+env.setdefault("DO_NOT_TRACK", "1")
+env.setdefault("ANTHROPIC_DEFAULT_OPUS_MODEL", "claude-opus-4-8")
+
+# Opinionated config defaults that reinforce the guardrails above (no artifacts,
+# no AI co-author line, deterministic worktrees, less UI noise, high effort).
+# Each only if you haven't chosen your own value — never clobbers.
+DEFAULTS = {
+    "includeCoAuthoredBy": False,
+    "enableArtifact": False,
+    "askUserQuestionTimeout": "never",
+    "worktree": {"baseRef": "fresh"},
+    "feedbackDrafts": "off",
+    "promptSuggestionEnabled": False,
+    "remoteControlAtStartup": False,
+    "effortLevel": "high",
+}
+for k, v in DEFAULTS.items():
+    cfg.setdefault(k, v)
+
 with open(settings, "w") as f:
     json.dump(cfg, f, indent=2)
     f.write("\n")
-print("merged hooks + attribution + statusLine into settings.json")
+print("merged hooks + attribution + statusLine + env + config defaults into settings.json")
 '@
 
 $tmp = Join-Path $env:TEMP "claude-starterkit-merge-$Stamp.py"
