@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """PreToolUse hook (matcher: Agent): enforce sub-agent spawn rules.
 
-Denies an Agent spawn that omits an explicit `model`, or that carries a `name:` (teammate/
-mailbox agents are banned). A deny is a guardrail, so it holds under bypassPermissions mode.
+Denies an Agent spawn that omits an explicit `model`. A deny is a guardrail, so it holds under
+bypassPermissions mode.
 
-Does NOT cover (stays prose): the Opus-4.8 pin / never-Opus-5 (the Agent tool takes a tier
-shorthand — `opus`/`sonnet`/`haiku` — so this hook can't distinguish 4.8 from 5), nor
-Workflow-internal agent() calls (they live inside the script, invisible to a PreToolUse hook).
+Does NOT cover (stays prose): the teammate / team-system pattern where agents are left open as
+idle addressable mailboxes (the Agent tool has no live param that distinguishes it from a plain
+named subagent that runs to completion and self-terminates); and Workflow-internal agent() calls
+(they live inside the script, invisible here).
 """
 import json
 import sys
@@ -28,9 +29,6 @@ def main():
         sys.exit(0)
 
     ti = data.get("tool_input") or {}
-    if ti.get("name"):
-        deny("No teammate/mailbox agents: drop the `name:` param so the sub-agent runs to "
-             "completion and self-terminates.")
     model = (ti.get("model") or "").strip()
     if not model:
         deny("Set an explicit `model` on every sub-agent (opus = claude-opus-4-8 for judgment; "

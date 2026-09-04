@@ -34,7 +34,7 @@ else `~/.claude`.
     ask to commit.
   - `icon-reminder.py` (UserPromptSubmit) — reminds to copy real icon-library glyphs, not hand-draw.
   - `deny-askuserquestion.py` (PreToolUse) — blocks the `AskUserQuestion` tool (ask in-message).
-  - `agent-guard.py` (PreToolUse) — blocks an `Agent` spawn with no explicit `model` or a `name:`.
+  - `agent-guard.py` (PreToolUse) — blocks an `Agent` spawn with no explicit `model`.
   - `git-guard.py` (PreToolUse) — blocks broad staging (`git add -A/./-u`, `commit -a`) and
     whole-tree mutations (`reset --hard`, `checkout .`, `restore .`, `clean -f`, create-form `stash`).
   - `nul-guard.py` (PreToolUse) — blocks a `Write`/`Edit` whose content carries a NUL/stray control byte.

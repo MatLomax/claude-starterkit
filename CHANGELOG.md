@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.4] - 2026-09-04
+
+### Changed
+
+- **`agent-guard.py` allows named agents.** The hook no longer blocks an `Agent` spawn that carries a `name:` — a descriptive `name:` slug (to tell parallel agents apart) is fine and encouraged. The only spawn rule it enforces is an explicit `model`. The banned *teammate* pattern (the team system where agents are left open as idle addressable mailboxes) stays a prose rule; the Agent tool has no live param to detect it. `CLAUDE.starterkit.md` §4 reworded to match.
+
 ## [0.3.3] - 2026-09-04
 
 ### Changed

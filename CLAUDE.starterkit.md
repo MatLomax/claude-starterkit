@@ -132,7 +132,7 @@ to done** — never "make progress and hand back". It carries two fixed meanings
 
 - **Drive = orchestrate to completion with your OWN tokens kept low.** Fan the *doing* out to
   concurrent subagents under the usual multi-agent rules (§4: an explicit `{model}` on every agent,
-  no `name:`, agents run only targeted tests); you hold the test-and-judge seat — gate the results
+  agents run only targeted tests); you hold the test-and-judge seat — gate the results
   and dispatch fixes yourself, don't do the bulk work inline. It ends only when every part is
   implemented and green (and shipped/committed **only if** that was asked — §7); the anti-stall /
   no-continue-pause rules apply in full. "Drove it partway, here's what's left" is a failed drive.
@@ -277,10 +277,11 @@ project's surfaces and suite. A global hook can't see them; state them here, gat
     forks, verify/audit-first investigation, coordinating roots → Opus 4.8. Genuinely mechanical,
     pattern-following work with an in-repo precedent to copy → Sonnet (or haiku for trivial
     sweeps). When unsure, pick Opus — under-tiering is the recurring failure mode.
-- **No teammate agents — never pass `name:` to Agent.** A `name:` turns a subagent into a persistent
-  addressable mailbox that idles after its work and needs explicit shutdown. Call `Agent` WITHOUT
-  `name:` so each runs to completion, returns its report, and self-terminates. Parallel fan-out still
-  works (multiple Agent calls in one block).
+- **Name agents with a descriptive slug — it's encouraged.** A `name:` that's a short descriptive
+  slug (to tell parallel agents apart) is fine and helps. What's banned is the *teammate* pattern —
+  the team system where agents are **left open** as idle, addressable mailboxes that need explicit
+  shutdown; a plain named subagent still runs to completion, returns its report, and self-terminates.
+  Parallel fan-out works with multiple Agent calls in one block.
 - **The orchestrator holds the test-and-judge seat.** Fan out agents for parallel *work*, then run
   the gates and judge the results *yourself* and dispatch targeted fixes — don't bake a self-contained
   verify/decide/self-repair loop into the workflow and walk away.
@@ -291,8 +292,8 @@ project's surfaces and suite. A global hook can't see them; state them here, gat
   that belong to in-flight work).
 
 *Enforcement note:* the agent-guard `PreToolUse` hook (matcher `Agent`) denies a sub-agent spawn that
-omits `model` or carries `name:`. Prose-only (not hookable): the Opus-4.8 pin / Opus-5 ban (the
-`Agent` tool takes a tier shorthand, so a hook can't tell 4.8 from 5), explicit-model on
+omits `model`. Prose-only (not hookable): the teammate /
+left-open ban, explicit-model on
 **workflow-internal** `agent()` calls (invisible to a PreToolUse hook), and the orchestrator-judge
 seat + targeted-tests discipline (judgment / per-project command patterns).
 
