@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-09-04
+
 ### Added
 
+- `make_bundle.py` — release bundler that single-sources the version from `CHANGELOG.md` (the first released `## [x.y.z]`) and emits a flat `dist/claude-starterkit-<version>.zip`, so the archive name can never drift from the changelog.
 - Installer seeds `env` opt-outs/pins into `settings.json` (per-key, non-clobbering): `DO_NOT_TRACK=1` and `ANTHROPIC_DEFAULT_OPUS_MODEL=claude-opus-4-8` (pins the `opus` alias to Opus 4.8).
 - Installer seeds opinionated config defaults (`setdefault`, non-clobbering): `enableArtifact: false`, `includeCoAuthoredBy: false`, `feedbackDrafts: off`, `promptSuggestionEnabled: false`, `remoteControlAtStartup: false`, `askUserQuestionTimeout: never`, `worktree.baseRef: fresh`, `effortLevel: high`.
 
