@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-09-04
+
+### Added
+
+- `CLAUDE.md` §2 — "'Read enough to answer accurately' is an OBLIGATION, not a permission you can decline": asserting how code/a system behaves from a name/shape/comment instead of opening the definition is the same failure as citing a stale memory.
+- `CLAUDE.md` §2 — "Tripwire — asking permission for a step you already have standing authorization to take": a read-only step under a standing grant needs no permission ask; finish it and report the pinned cause.
+- `CLAUDE.md` §3 — "All gates green" now carries "a backgrounded/wrapped run's completion EXIT CODE is not that confirmation — READ THE LOG": only the inner suite's result line is ground truth.
+- `CLAUDE.md` §9 — "A session launched inside a worktree can't run git against the main checkout — `ExitWorktree(keep)` is the way out": plus "Expect main to have moved while you worked" (cherry-pick/rebase when `--ff-only` is refused).
+- `CLAUDE.md` §10 — the `worklog` cross-session task/decision log bullet (`MatLomax/worklog`, SQLite-backed MCP server; `worklog init` per project; omit `slug` and let it derive from the title).
+
+### Changed
+
+- `CLAUDE.md` §7 — the `.git/COMMIT_STYLE.md` bullet expanded to spell out all three cases (present; absent with commits → derive-and-write; absent with no commits → the one time to ask) and that the whole dance is done silently.
+- Re-synced the packaged `CLAUDE.md` to the **union** of the maintained user-level ruleset across both machines, reconciling divergence between them (machine-specific homelab import excluded).
+
 ## [0.3.0] - 2026-08-20
 
 ### Added

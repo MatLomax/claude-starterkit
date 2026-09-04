@@ -77,6 +77,18 @@ next step*, then you wait. **The tell:** your tool calls shift from reading-to-e
 editing/writing, or you catch yourself typing "let me fix it now" — stop there. *(A question is a
 non-imperative too, so the correction-primer hook above covers this case as well.)*
 
+**"Read enough to answer accurately" is an OBLIGATION, not a permission you can decline.** A class
+name, a variable name (`SystemWide.Instance.X`), a nearby comment, or "this is how these usually work"
+is a hypothesis, not a verified fact — and asserting it as fact instead of opening the actual
+definition is the same failure as citing a stale memory, just sourced from a guess instead of an old
+record. Before writing a sentence that states how code/a system behaves — a persistence model, a call
+path, a data lifetime, a business rule — stop and ask: did I actually open the definition, or am I
+pattern-matching from its name/shape/surroundings? If the latter, that is not an answer yet — open the
+file first, every time, no exceptions for "obvious" cases. **Tripwire:** two real incidents, same
+session — calling a `SqlDataObject`-backed table "in-memory, not a database schema change" purely from
+its naming pattern, and asserting a code path credits zero demand from a plausible-sounding
+architectural inference — both wrong, both one file-read away from being caught before being said.
+
 ### "Confirm your understanding" is explain-only; "investigate" means finish it
 
 Two distinct instructions, two distinct completions — and the failure is producing a HYBRID of
@@ -103,6 +115,15 @@ clean understanding-statement with no digging, or an investigation carried to a 
 app", or "leading hypothesis" about something a code read could settle — and you haven't opened the
 file. Open it. (This is the "unmeasured size guess" deferral in a diagnostic disguise — see that
 rule below.)
+
+**Tripwire — asking permission for a step you already have standing authorization to take.** "Say
+the word and I'll run that query", "want me to check X?", "confirm and I'll pin it down" about a
+read-only step already covered by a standing grant (a read-only-by-default DB login, a grep, a
+further code/log read, anything with no write/build/deploy/publish attached) is the half-investigation
+wearing a politeness costume — asking permission for a step that needs none. A ranked list of
+candidate root causes with an offer to confirm the top one is not a finished diagnosis, no matter how
+well-evidenced each candidate is. If finishing requires only reads, finish it in the same turn and
+report the pinned cause; there is nothing to ask.
 
 ### "Drive" means carry to COMPLETION — concurrently, across the whole live subtree
 
@@ -191,6 +212,13 @@ test, and audit it touches is finished and green.**
 - **All gates green — no red, no defer.** Before declaring anything done, run the FULL applicable
   gate + **full test suite** and confirm **0 red**. A failure you surface is yours to fix or escalate
   — never to disown as "pre-existing" / "another session's" / "its owning task is still open".
+  **A backgrounded or wrapped run's completion EXIT CODE is not that confirmation — READ THE LOG.**
+  The exit code a harness surfaces for a backgrounded/`just`-wrapped/sharded command can report success
+  while the inner suite's own merged output says `fail=N`; only the result line (`fail=`, `MERGED …`,
+  the failing assertion) is ground truth. Grep/read it before reporting green — never infer "0 red" from
+  the completion notification. (A single `node --test <file>` exit code is reliable; a wrapped/sharded
+  run's is not. Corollary: widening an op/kind union reds tests with HARDCODED expected lists even when
+  the derivation gates stay green — the full suite catches them, so the full suite must be READ.)
 - **The levels are distinct:** proposed → decided → implemented → reviewed/green → shipped. Verify
   each at its own level (grep symbols/tests, don't trust logs); never call something shipped unless
   the user said so.
@@ -332,10 +360,19 @@ seat + targeted-tests discipline (judgment / per-project command patterns).
   stops the harness generating attribution on every commit path.)*
 - **Don't hard-wrap commit message bodies.** Write each paragraph as a **single line** and let the
   reader's tool wrap it; separate paragraphs with a blank line.
-- **When a repo has `.git/COMMIT_STYLE.md`, read it and stop** — it is the SSOT for that repo's commit
-  style; don't *also* scan `git log` to re-derive what it already states. *(Injected by the
-  commit-style-primer (`UserPromptSubmit`) when you ask for a commit/PR, so it's read before the
-  message is written.)*
+- **`.git/COMMIT_STYLE.md` is the SSOT for a repo's commit style — read it if present, *write* it if
+  absent, and do the whole dance SILENTLY.** It lives in `.git/` (local, never committed), so creating
+  it is safe and needs no asking.
+  - **Present:** read it and follow it; do NOT *also* scan `git log` to re-derive what it already states.
+  - **Absent, repo has commits:** derive the convention from the existing commits (`git log`) and **write**
+    `.git/COMMIT_STYLE.md` capturing it, so it isn't re-derived next time — then commit in that style.
+  - **Absent AND no commits exist yet:** this is the *one and only* case where you ask the user what
+    commit-message style the project should use; write the file from their answer, then commit.
+  - **Silently** means exactly that: never narrate the check / log-scan / file-write in your reply, and
+    never report that you did them — just produce the correctly-styled commit. (The one permitted mention
+    is the no-commits question above.)
+  *(The commit-style-primer (`UserPromptSubmit`) injects the file when you ask for a commit/PR, so a
+  present one is already in context before the message is written.)*
 - **Commit only your own changes, staged explicitly** (see §8) — `git add <the-paths-you-touched>`,
   never `git add -A` / `.` / `-u` / `commit -a`. *(Enforced by the git-guard hook: broad staging is
   denied.)*
@@ -386,6 +423,23 @@ Lifecycle, every time:
   away.
 - **If it isn't ready to merge, say so** — an unfinished worktree is a status to report, not a thing
   to quietly leave lying around.
+- **A session launched inside a worktree can't run git against the main checkout — `ExitWorktree(keep)`
+  is the way out.** The harness refuses every git op that targets the shared root (`cd <root>`,
+  `git -C <root>`, even `--git-dir`/`--work-tree` redirects), and `dangerouslyDisableSandbox` does NOT
+  lift it — it is a policy guard, not the OS sandbox. So steps 3–4 (merge, collapse) cannot run from
+  inside the isolated session, and you can't `git worktree remove` the tree you are standing in anyway.
+  Do NOT hand the user `!`-prefixed commands to run themselves and call it done — that is stopping
+  short. Instead call **`ExitWorktree(keep)`**: it returns the session to the main checkout *and drops
+  the worktree isolation*, so the merge and the full collapse then run normally from there (re-enter
+  later with `EnterWorktree` if more work remains). Never smuggle a git-on-root command past the guard
+  with obscure flags — the guard protects other sessions' shared checkout.
+- **Expect main to have moved while you worked** — another session may have committed to it. Once you
+  are back on the main checkout, if `git merge --ff-only <branch>` is refused, do not force it:
+  cherry-pick (or rebase) your worktree commits onto current main for linear history. Because the
+  commits then carry new SHAs, `git branch -d` will refuse ("not merged") — verify equivalence first
+  (`git diff <branch> main -- <your paths>` is empty), then `git branch -D`. Re-run the FULL gate on
+  the merged main (deps may need reinstalling — a cherry-picked `package.json` doesn't install
+  itself), and leave other sessions' worktrees and uncommitted files untouched (§8).
 
 ## 10. Tooling / agent gotchas
 
@@ -415,3 +469,4 @@ Lifecycle, every time:
   output file or await the completion event and read the result. Foreground is for genuinely quick
   commands only; discovering the limit by hitting it is the tell you mis-scoped the task. Redirect the
   command's own output to a file (per the raw-output rule) so the backgrounded run is inspectable.
+- **`worklog` is my cross-session task/decision log** ([`MatLomax/worklog`](https://github.com/MatLomax/worklog), SQLite-backed MCP server, single Go binary; `worklog init` per project, DB at `<project>/.worklog/`). MCP is attach-only — inert until `worklog init` has run in that project. Needs the binary on PATH; if `command not found`, install it (`go install github.com/MatLomax/worklog/cmd/worklog@latest` or a release binary) before use. **Creating tasks: omit `slug` and let it derive from the title** — the auto-title-to-slug is sufficient in almost every case; set an explicit slug only when strictly necessary.
