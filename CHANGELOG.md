@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Installer seeds `env` opt-outs/pins into `settings.json` (per-key, non-clobbering): `DO_NOT_TRACK=1` and `ANTHROPIC_DEFAULT_OPUS_MODEL=claude-opus-4-8` (pins the `opus` alias to Opus 4.8).
+- Installer seeds opinionated config defaults (`setdefault`, non-clobbering): `enableArtifact: false`, `includeCoAuthoredBy: false`, `feedbackDrafts: off`, `promptSuggestionEnabled: false`, `remoteControlAtStartup: false`, `askUserQuestionTimeout: never`, `worktree.baseRef: fresh`, `effortLevel: high`.
+
+### Removed
+
+- The `deny-artifact.py` PreToolUse hook and its installer entry — artifact publishing is now prevented by the native `enableArtifact: false` setting alone.
+
+### Changed
+
+- `CLAUDE.md` §6 — the artifact-enforcement note now points at the native `enableArtifact: false` setting instead of the removed hook.
+
 ## [0.3.1] - 2026-09-04
 
 ### Added

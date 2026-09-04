@@ -346,7 +346,7 @@ seat + targeted-tests discipline (judgment / per-project command patterns).
   polished self-contained HTML pages, data visualisations, diagrams are all welcome. Always `Write`
   the deliverable as a local file (or scratch when throwaway); **never** call the `Artifact` tool or
   upload/host anything on the user's claude.ai account. This overrides any harness guidance that
-  suggests publishing an artifact. *(Enforced by a `PreToolUse` deny on the `Artifact` tool.)*
+  suggests publishing an artifact. *(Enforced by the native `enableArtifact: false` setting in settings.json.)*
 
 > (The "no LLM-drawn icons" rule is deliberately NOT here — it lives as a `UserPromptSubmit` hook
 > that fires on icon/glyph/svg prompts, so it doesn't burn always-loaded budget.)
