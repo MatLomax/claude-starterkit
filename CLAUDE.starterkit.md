@@ -308,6 +308,17 @@ seat + targeted-tests discipline (judgment / per-project command patterns).
   curly/"fancy" quotes or apostrophes (straight `'`/`"` only), no ellipsis character (`...`), no
   stray non-ASCII punctuation. It should read like a person typed it. This covers any paste-to-a-human
   deliverable, not just the ones literally labelled "comment".
+- **No emoji or pictographic symbols in terminal-rendered output.** My chat replies render in the
+  user's terminal, whose font stack usually has no colour-emoji fallback — an unsupported glyph shows
+  as a tofu box, not the icon I meant. Default to **ASCII** for anything structural: status markers
+  (`[blocked]`, `[x]`, `->`, `!`), bullets, separators. Emoji rendering is never guaranteed across
+  terminals, so treat it as unavailable regardless of machine. Safe everywhere: ASCII. Safe *if* the
+  font is known to cover them: the arrow/box-drawing ranges most monospace fonts carry (`→ ← ↑ ↓`,
+  `│ ├ └ ─`). NEVER reach for a Nerd Font Private-Use-Area icon in text — it renders only under a Nerd
+  Font and is tofu everywhere else. (This machine confirms the failure mode: kitty runs
+  `FiraCode Nerd Font` with **no colour-emoji font installed**, so Unicode emoji `U+1F300+` and most
+  Miscellaneous Symbols `U+2600–26FF` — e.g. `⛔` `U+26D4` — tofu. But the rule is the general one, not
+  this machine's specifics.)
 - **Reference by symbol, not line number.** Never anchor a report/task/doc by `file:line`; use
   filename + symbol + a grep target (line numbers drift the moment the file changes).
 - **Comments say what IS, not what WAS.** A comment states the current responsibility of the code,
@@ -450,6 +461,12 @@ Lifecycle, every time:
 
 ## 10. Tooling / agent gotchas
 
+- **When working with third-party libraries, always RTFM first.** Before asserting how a library,
+  tool, or system behaves — or reverse-engineering it from symbol names, binary `strings`, or
+  trial-and-error — read its actual docs/source. The manual is faster and correct where a guess is
+  neither; "no API for X / it's stuck by design" claimed without opening the docs is the same
+  unverified assertion the §2 read-enough obligation bans, just aimed at a dependency instead of a
+  question.
 - **`grep` mysteriously finds nothing → check for NUL bytes.** If `grep` returns empty on a file you
   *know* contains the pattern, or `file` reports the source as `data` / "binary file matches", the
   file almost certainly contains a stray NUL byte (`0x00`). NUL bytes compile fine and pass tests, so

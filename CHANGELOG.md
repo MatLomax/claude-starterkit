@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.6] - 2026-09-06
+
+### Added
+
+- `CLAUDE.starterkit.md` §5 — "No emoji or pictographic symbols in terminal-rendered output": chat replies render in a terminal whose font stack usually has no colour-emoji fallback, so an unsupported glyph shows as a tofu box — default to ASCII for structural markers, and never rely on Nerd Font Private-Use-Area icons in text (they render only under a Nerd Font). Absorbed from a machine-local rule so it now applies across every machine via the shared import.
+- `CLAUDE.starterkit.md` §10 — "When working with third-party libraries, always RTFM first": read a library/tool's actual docs or source before asserting how it behaves or reverse-engineering it from symbol names or `strings`; a "no API for X / stuck by design" claim made without opening the docs is the same unverified assertion §2's read-enough obligation bans, aimed at a dependency instead of a question.
+
 ## [0.3.5] - 2026-09-05
 
 ### Added
