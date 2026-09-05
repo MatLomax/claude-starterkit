@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.5] - 2026-09-05
+
+### Added
+
+- `CLAUDE.starterkit.md` §5 — "Text meant to be pasted to a person is sanitized of LLM tells": strip en/em-dashes, curly quotes/apostrophes, the ellipsis character, and stray non-ASCII punctuation from any paste-to-a-human deliverable so it reads like a person typed it. Absorbed from a machine-local rule, so it now applies across every machine via the shared import.
+
 ## [0.3.4] - 2026-09-04
 
 ### Changed

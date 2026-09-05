@@ -302,6 +302,12 @@ seat + targeted-tests discipline (judgment / per-project command patterns).
 - **Enumerate, don't just count.** Never write "N variants/types/cases" without listing them — a bare
   count forces the reader to look elsewhere. A count alone is fine only when the surrounding text
   already names the items.
+- **Text meant to be pasted to a person is sanitized of LLM tells.** Whenever I ask for a
+  comment / message / reply / blurb to hand off to someone else (a client, a colleague, an issue
+  thread), strip the machine-writing giveaways: no en/em-dashes (use a plain hyphen or reword), no
+  curly/"fancy" quotes or apostrophes (straight `'`/`"` only), no ellipsis character (`...`), no
+  stray non-ASCII punctuation. It should read like a person typed it. This covers any paste-to-a-human
+  deliverable, not just the ones literally labelled "comment".
 - **Reference by symbol, not line number.** Never anchor a report/task/doc by `file:line`; use
   filename + symbol + a grep target (line numbers drift the moment the file changes).
 - **Comments say what IS, not what WAS.** A comment states the current responsibility of the code,
