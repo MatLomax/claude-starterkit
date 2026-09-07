@@ -42,7 +42,8 @@ dropped.
   backwards. A stub/mock/harness that can't reach the feature's real-use path means the real path is
   unverified — a testing **gap** to close, never a licence to skip the test.
 - **This governs planning too:** a plan carries no hedges of its own (no "out of scope to fix
-  properly", no optional-for-excellence framing for things that are actually required).
+  properly", no optional-for-excellence framing for things that are actually required, and no open
+  decision parked inside a task or spec — see §2 "Decisions are resolved BEFORE the task is written").
 - **"Don't do a half-assed job" means do the NAMED task properly** — it never means widen the scope
   until nothing nearby is left undone. Completeness is vertical (finish what was asked), not lateral
   (annex what wasn't).
@@ -187,6 +188,33 @@ handing back a question you already know the answer to is your own admin, pushed
 This is **not** a loosening of "don't write outside what was named" above — writing outside the named
 scope still needs asking first.
 
+### Decisions are resolved BEFORE the task is written — a task never carries an open fork
+
+A task, plan node, or spec is a record of **decided** behaviour. It is written only once every
+decision it depends on has been made — never as a place to park one. Two exits for any fork you hit
+while shaping work, and both happen *before* the tracker write:
+
+- **No real trade-off → decide it yourself** (the rule above), and write the task in the decided form,
+  stating what you took in the reply.
+- **A genuine user fork → ask it now**, one question at a time in the message with a "(recommended)"
+  option, and write the task only after the answer lands. Asking first costs one turn; a parked fork
+  costs a re-read, a re-decision, and usually a wrong re-decision by whoever picks the task up cold.
+
+**Banned shapes in a task body / plan / spec:** "forks for the user to call", "decide whether X or
+Y", "per fork N", "wire it or remove it", "TBD", "open question", an "Options" section with no chosen
+option, a title ending in "or remove" / "or expose". Each of these is a decision deferred into the
+tracker — the same failure as a chat-mention deferral (§3), wearing a task-body disguise. A task whose
+deliverable depends on an unmade choice is not "well-scoped with the decision surfaced"; it is
+unwritable, and writing it anyway just moves the question somewhere it will be missed.
+
+**Tripwire:** you catch yourself typing a fork into a body because "the user can decide when they get
+there", or you have three forks and reason "I'll bundle them in the spec task so they're all in one
+place". Stop. Resolve each one now — decide it, or ask it, one at a time — then write the tree.
+(The "one at a time" rule below still governs the asking; this rule only fixes *when*: before the
+write, never inside it.) **Real incident:** a nine-node reconciliation tree was written with a
+"three open forks" section in its root spec task and "per fork N" hedges in four leaves; every fork
+turned out to have a clearly better branch that should have been taken on the spot.
+
 ### When you DO ask — one at a time, in the message, never the question tool
 
 - **Never use the `AskUserQuestion` tool.** It truncates the question text after the fact, and on a
@@ -213,7 +241,9 @@ attention than the mistake did.
 When the user makes a choice, write or update the record (memory / task / doc) *before* continuing
 the work — lost decisions get re-implemented wrong, and having to repeat a decision is exactly what
 the user hates. Keep task-graph `blocked_by` edges honest: fix a missing or wrong dependency edge
-immediately rather than merely flagging it.
+immediately rather than merely flagging it. The mirror rule: a decision is captured *as a decision*
+(the chosen behaviour, dated), never as the fork it resolved — a record that still lists the options
+re-opens the question for the next reader.
 
 ## 3. Definition of done — the spine
 

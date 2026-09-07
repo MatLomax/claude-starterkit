@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `CLAUDE.starterkit.md` §2 — "Decisions are resolved BEFORE the task is written — a task never carries an open fork": a task, plan node or spec records decided behaviour only. Every fork it depends on is resolved before the tracker write — decided on the spot when one option is clearly better, or asked one question at a time in the message when it is genuinely the user's call — and the banned body shapes ("forks for the user to call", "decide whether X or Y", "per fork N", "wire it or remove it", "TBD", an Options section with no chosen option, a title ending in "or remove") are named with a tripwire and the incident that prompted it. §1's planning line and §2's "Capture decisions" gain matching clauses: no open decision parked in a task or spec, and a decision is captured as the chosen behaviour, never as the fork it resolved.
+
 ## [0.3.7] - 2026-09-07
 
 ### Added
