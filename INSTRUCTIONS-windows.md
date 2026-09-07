@@ -28,6 +28,10 @@ Then **restart Claude Code** (or start a fresh session) so the hooks load. The s
 Re-running is safe (idempotent). It honours `$env:CLAUDE_CONFIG_DIR` if set, else
 `%USERPROFILE%\.claude`.
 
+It prompts whether to install the optional **worklog** task-log add-on, defaulting to yes (press
+Enter to accept). Pass `-NoWorklog` (or set `$env:STARTERKIT_WORKLOG = "0"` first) to skip it, or
+`-WithWorklog` to install without prompting; non-interactive runs install it by default.
+
 ---
 
 ## Option B — do it manually
@@ -45,6 +49,16 @@ Copy-Item .\CLAUDE.starterkit.md (Join-Path $CFG "CLAUDE.starterkit.md")
 $claudeMd = Join-Path $CFG "CLAUDE.md"
 if (-not ((Test-Path $claudeMd) -and (Select-String -Path $claudeMd -SimpleMatch -Pattern '@./CLAUDE.starterkit.md' -Quiet))) {
   Add-Content -Path $claudeMd -Value "`n@./CLAUDE.starterkit.md"
+}
+```
+
+*Optional:* if you use [`worklog`](https://github.com/MatLomax/worklog), also install the add-on that
+points the ruleset's generic "tracked node" wording at it — otherwise skip this:
+
+```powershell
+Copy-Item .\CLAUDE.starterkit-worklog.md (Join-Path $CFG "CLAUDE.starterkit-worklog.md")
+if (-not ((Test-Path $claudeMd) -and (Select-String -Path $claudeMd -SimpleMatch -Pattern '@./CLAUDE.starterkit-worklog.md' -Quiet))) {
+  Add-Content -Path $claudeMd -Value "`n@./CLAUDE.starterkit-worklog.md"
 }
 ```
 
@@ -125,7 +139,8 @@ don't replace what's there).
 
 Delete `%USERPROFILE%\.claude\CLAUDE.starterkit.md` and remove the `@./CLAUDE.starterkit.md` line
 from `%USERPROFILE%\.claude\CLAUDE.md`, restore the `settings.json.bak-…` you backed up, and delete
-the hook scripts from `%USERPROFILE%\.claude\hooks\`.
+the hook scripts from `%USERPROFILE%\.claude\hooks\`. If you enabled the worklog add-on, also delete
+`%USERPROFILE%\.claude\CLAUDE.starterkit-worklog.md` and its `@./CLAUDE.starterkit-worklog.md` line.
 
 ## What each piece does
 

@@ -3,6 +3,11 @@
 A user-level `CLAUDE.md` (working standards + interaction rules) plus a set of Claude Code hooks that
 mechanically enforce the parts that can be enforced. Everything is machine- and project-agnostic.
 
+This is one person's opinionated ruleset, shared in case it's useful — fork it and cut what doesn't
+fit your workflow. The installer never overwrites your own `CLAUDE.md` or clobbers your
+`settings.json`; it layers on top and every opinionated default is set only if you haven't chosen
+your own (see [What it installs](#what-it-installs)).
+
 ## Install
 
 ```bash
@@ -27,6 +32,11 @@ else `~/.claude`.
 - **`CLAUDE.starterkit.md`** → `~/.claude/CLAUDE.starterkit.md` — the user-level ruleset, pulled into
   context by an idempotent `@./CLAUDE.starterkit.md` line appended to your `~/.claude/CLAUDE.md`
   (your own `CLAUDE.md` is left intact — the starterkit layers on top of it).
+- **`CLAUDE.starterkit-worklog.md`** — an add-on that points the ruleset's generic "tracked node" /
+  "task graph" wording at [`worklog`](https://github.com/MatLomax/worklog), a cross-session task log.
+  The installer offers it via a prompt that **defaults to yes** (press Enter to install). Opt out with
+  `--no-worklog` / `-NoWorklog`, or `STARTERKIT_WORKLOG=0`; non-interactive runs install it by default.
+  Skip it and the base ruleset is unaffected.
 - **8 hooks** → `~/.claude/hooks/`, wired into `settings.json`:
   - `correction-primer.py` (UserPromptSubmit) — nudges you when a message reads as a
     correction/question, not a start-imperative.
@@ -62,8 +72,14 @@ else `~/.claude`.
 - Heuristics (git flag matching, correction/question detection) are pragmatic — tune the scripts in
   `~/.claude/hooks/` to taste.
 - To uninstall: delete `~/.claude/CLAUDE.starterkit.md` and remove the `@./CLAUDE.starterkit.md`
-  line from `~/.claude/CLAUDE.md`, restore the `settings.json.bak-…`, and delete the hook scripts.
+  line from `~/.claude/CLAUDE.md`, restore the `settings.json.bak-…`, and delete the hook scripts. If
+  you enabled the worklog add-on, also delete `~/.claude/CLAUDE.starterkit-worklog.md` and its
+  `@./CLAUDE.starterkit-worklog.md` line (re-running with `--no-worklog` does not remove it).
 - **Upgrading from ≤ 0.3.1?** Those versions installed the ruleset *inline* as `~/.claude/CLAUDE.md`.
   This version installs it as `CLAUDE.starterkit.md` + an import, so after upgrading, delete the old
   inline ruleset from your `~/.claude/CLAUDE.md` (keep the `@./CLAUDE.starterkit.md` line) so it isn't
   loaded twice.
+
+## License
+
+MIT — see [`LICENSE`](LICENSE).

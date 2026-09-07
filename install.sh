@@ -14,6 +14,39 @@ set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 
+# The worklog task-log add-on: --with-worklog / --no-worklog, else the STARTERKIT_WORKLOG env var,
+# else an interactive prompt that DEFAULTS TO YES (press Enter to install it). Non-interactive runs
+# (piped / CI) default to yes too; use --no-worklog or STARTERKIT_WORKLOG=0 to skip.
+WANT_WORKLOG="${STARTERKIT_WORKLOG:-}"
+for arg in "$@"; do
+  case "$arg" in
+    --with-worklog) WANT_WORKLOG=1 ;;
+    --no-worklog)   WANT_WORKLOG=0 ;;
+    -h|--help)
+      cat <<'EOF'
+Usage: ./install.sh [--no-worklog | --with-worklog]
+
+Installs the Claude Code ruleset + guardrail hooks into your Claude config dir.
+Safe to re-run. Honours $CLAUDE_CONFIG_DIR, else ~/.claude.
+
+The worklog task-log add-on is offered by a prompt that defaults to yes (Enter installs it).
+  --no-worklog     skip the worklog add-on (no prompt)
+  --with-worklog   install it without prompting
+  (env STARTERKIT_WORKLOG=0 skips it, =1 installs it; non-interactive runs default to install)
+EOF
+      exit 0 ;;
+  esac
+done
+if [ -z "$WANT_WORKLOG" ]; then
+  if [ -t 0 ]; then
+    printf 'Install the worklog task-log add-on? (needs the worklog MCP tool) [Y/n] '
+    read -r _ans || _ans=""
+    case "$_ans" in [Nn]*) WANT_WORKLOG=0 ;; *) WANT_WORKLOG=1 ;; esac
+  else
+    WANT_WORKLOG=1
+  fi
+fi
+
 mkdir -p "$CLAUDE_DIR/hooks"
 
 # 1. Ruleset — install as CLAUDE.starterkit.md and import it from your CLAUDE.md.
@@ -27,6 +60,21 @@ if [ -f "$CLAUDE_MD" ] && grep -qF "$IMPORT_LINE" "$CLAUDE_MD"; then
 else
   { [ -s "$CLAUDE_MD" ] && printf '\n'; printf '%s\n' "$IMPORT_LINE"; } >> "$CLAUDE_MD"
   echo "appended '$IMPORT_LINE' to CLAUDE.md"
+fi
+
+# 1b. Optional worklog add-on — installed and imported only if requested.
+WL_FILE="CLAUDE.starterkit-worklog.md"
+WL_IMPORT="@./$WL_FILE"
+if [ "$WANT_WORKLOG" = "1" ]; then
+  cp "$HERE/$WL_FILE" "$CLAUDE_DIR/$WL_FILE"
+  if [ -f "$CLAUDE_MD" ] && grep -qF "$WL_IMPORT" "$CLAUDE_MD"; then
+    echo "CLAUDE.md already imports $WL_FILE"
+  else
+    { [ -s "$CLAUDE_MD" ] && printf '\n'; printf '%s\n' "$WL_IMPORT"; } >> "$CLAUDE_MD"
+    echo "appended '$WL_IMPORT' to CLAUDE.md (worklog add-on)"
+  fi
+else
+  echo "skipping worklog add-on (--no-worklog / STARTERKIT_WORKLOG=0)"
 fi
 
 # 2. hooks

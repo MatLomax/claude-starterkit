@@ -15,6 +15,10 @@ ruleset as `~/.claude/CLAUDE.starterkit.md` and ensure-appends a single `@./CLAU
 import to your `~/.claude/CLAUDE.md` (never overwriting it), backs up `~/.claude/settings.json`, and
 merges into `settings.json` without touching your other settings. Re-running is safe.
 
+It prompts whether to install the optional **worklog** task-log add-on, defaulting to yes (press
+Enter to accept). Pass `--no-worklog` (or `STARTERKIT_WORKLOG=0`) to skip it, or `--with-worklog` to
+install without prompting; non-interactive runs install it by default.
+
 ---
 
 ## Option B — do it manually
@@ -29,6 +33,15 @@ mkdir -p "$CFG/hooks"
 cp CLAUDE.starterkit.md "$CFG/CLAUDE.starterkit.md"
 grep -qF '@./CLAUDE.starterkit.md' "$CFG/CLAUDE.md" 2>/dev/null \
   || printf '\n%s\n' '@./CLAUDE.starterkit.md' >> "$CFG/CLAUDE.md"
+```
+
+*Optional:* if you use [`worklog`](https://github.com/MatLomax/worklog), also install the add-on that
+points the ruleset's generic "tracked node" wording at it — otherwise skip this:
+
+```bash
+cp CLAUDE.starterkit-worklog.md "$CFG/CLAUDE.starterkit-worklog.md"
+grep -qF '@./CLAUDE.starterkit-worklog.md' "$CFG/CLAUDE.md" 2>/dev/null \
+  || printf '\n%s\n' '@./CLAUDE.starterkit-worklog.md' >> "$CFG/CLAUDE.md"
 ```
 
 **2. Install the hooks and the statusline.** (The statusline needs `jq` + `awk` at render time —
@@ -94,7 +107,8 @@ commands.
 
 Delete `$CFG/CLAUDE.starterkit.md` and remove the `@./CLAUDE.starterkit.md` line from
 `$CFG/CLAUDE.md`, restore the `settings.json.bak` you backed up, and delete the hook scripts from
-`$CFG/hooks/`.
+`$CFG/hooks/`. If you enabled the worklog add-on, also delete `$CFG/CLAUDE.starterkit-worklog.md` and
+its `@./CLAUDE.starterkit-worklog.md` line.
 
 ## What each piece does
 

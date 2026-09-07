@@ -360,10 +360,10 @@ seat + targeted-tests discipline (judgment / per-project command patterns).
   terminals, so treat it as unavailable regardless of machine. Safe everywhere: ASCII. Safe *if* the
   font is known to cover them: the arrow/box-drawing ranges most monospace fonts carry (`→ ← ↑ ↓`,
   `│ ├ └ ─`). NEVER reach for a Nerd Font Private-Use-Area icon in text — it renders only under a Nerd
-  Font and is tofu everywhere else. (This machine confirms the failure mode: kitty runs
-  `FiraCode Nerd Font` with **no colour-emoji font installed**, so Unicode emoji `U+1F300+` and most
-  Miscellaneous Symbols `U+2600–26FF` — e.g. `⛔` `U+26D4` — tofu. But the rule is the general one, not
-  this machine's specifics.)
+  Font and is tofu everywhere else. (A common setup that triggers this: a terminal running a
+  Nerd Font with **no colour-emoji font installed**, where Unicode emoji `U+1F300+` and most
+  Miscellaneous Symbols `U+2600–26FF` — e.g. `⛔` `U+26D4` — render as tofu. Treat emoji as
+  unavailable regardless of your setup.)
 - **Reference by symbol, not line number.** Never anchor a report/task/doc by `file:line`; use
   filename + symbol + a grep target (line numbers drift the moment the file changes).
 - **Comments say what IS, not what WAS.** A comment states the current responsibility of the code,
@@ -538,4 +538,7 @@ Lifecycle, every time:
   output file or await the completion event and read the result. Foreground is for genuinely quick
   commands only; discovering the limit by hitting it is the tell you mis-scoped the task. Redirect the
   command's own output to a file (per the raw-output rule) so the backgrounded run is inspectable.
-- **`worklog` is my cross-session task/decision log** ([`MatLomax/worklog`](https://github.com/MatLomax/worklog), SQLite-backed MCP server, single Go binary; `worklog init` per project, DB at `<project>/.worklog/`). MCP is attach-only — inert until `worklog init` has run in that project. Needs the binary on PATH; if `command not found`, install it (`go install github.com/MatLomax/worklog/cmd/worklog@latest` or a release binary) before use. **Creating tasks: omit `slug` and let it derive from the title** — the auto-title-to-slug is sufficient in almost every case; set an explicit slug only when strictly necessary.
+
+> The `CLAUDE.starterkit-worklog.md` add-on (the installer's prompt defaults to yes; `--no-worklog`
+> skips it) points "a tracked node" / "the task graph" throughout this ruleset at a concrete tool. If
+> you use a different tracker, edit that fragment to name it.

@@ -12,9 +12,27 @@ Safe to re-run. Restart Claude Code (or start a fresh session) afterwards for th
 Honours $env:CLAUDE_CONFIG_DIR if set, else %USERPROFILE%\.claude.
 
 Usage (from this folder):
-  powershell -ExecutionPolicy Bypass -File .\install.ps1
+  powershell -ExecutionPolicy Bypass -File .\install.ps1 [-NoWorklog | -WithWorklog]
+
+  The worklog task-log add-on is offered by a prompt that defaults to yes (Enter installs it).
+  -NoWorklog     skip the worklog add-on (no prompt)
+  -WithWorklog   install it without prompting
+  (env STARTERKIT_WORKLOG=0 skips it, =1 installs it; non-interactive runs default to install)
 #>
+param([switch]$WithWorklog, [switch]$NoWorklog)
 $ErrorActionPreference = "Stop"
+
+# The worklog task-log add-on: -WithWorklog / -NoWorklog, else the STARTERKIT_WORKLOG env var, else
+# an interactive prompt that DEFAULTS TO YES (press Enter to install it). Non-interactive runs
+# (redirected stdin) default to yes too; use -NoWorklog or STARTERKIT_WORKLOG=0 to skip.
+if ($WithWorklog) { $WantWorklog = $true }
+elseif ($NoWorklog) { $WantWorklog = $false }
+elseif ($env:STARTERKIT_WORKLOG) { $WantWorklog = ($env:STARTERKIT_WORKLOG -eq "1") }
+elseif ([Environment]::UserInteractive -and -not [Console]::IsInputRedirected) {
+  # Interactive only: skip the prompt when stdin is redirected (piped / CI), matching bash's `[ -t 0 ]`.
+  $ans = Read-Host "Install the worklog task-log add-on? (needs the worklog MCP tool) [Y/n]"
+  $WantWorklog = ($ans -notmatch '^[Nn]')
+} else { $WantWorklog = $true }
 
 $Here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ClaudeDir = if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR } else { Join-Path $env:USERPROFILE ".claude" }
@@ -51,6 +69,22 @@ if ((Test-Path $claudeMd) -and (Select-String -Path $claudeMd -SimpleMatch -Patt
   if ((Test-Path $claudeMd) -and ((Get-Item $claudeMd).Length -gt 0)) { Add-Content -Path $claudeMd -Value "" }
   Add-Content -Path $claudeMd -Value $importLine
   Write-Host "appended '$importLine' to CLAUDE.md"
+}
+
+# 1b. Optional worklog add-on — installed and imported only if requested.
+$wlFile = "CLAUDE.starterkit-worklog.md"
+$wlImport = "@./$wlFile"
+if ($WantWorklog) {
+  Copy-Item (Join-Path $Here $wlFile) (Join-Path $ClaudeDir $wlFile) -Force
+  if ((Test-Path $claudeMd) -and (Select-String -Path $claudeMd -SimpleMatch -Pattern $wlImport -Quiet)) {
+    Write-Host "CLAUDE.md already imports $wlFile"
+  } else {
+    if ((Test-Path $claudeMd) -and ((Get-Item $claudeMd).Length -gt 0)) { Add-Content -Path $claudeMd -Value "" }
+    Add-Content -Path $claudeMd -Value $wlImport
+    Write-Host "appended '$wlImport' to CLAUDE.md (worklog add-on)"
+  }
+} else {
+  Write-Host "skipping worklog add-on (-NoWorklog / STARTERKIT_WORKLOG=0)"
 }
 
 # 2. hooks

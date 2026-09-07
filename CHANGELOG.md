@@ -11,6 +11,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `CLAUDE.starterkit.md` §2 — "Decisions are resolved BEFORE the task is written — a task never carries an open fork": a task, plan node or spec records decided behaviour only. Every fork it depends on is resolved before the tracker write — decided on the spot when one option is clearly better, or asked one question at a time in the message when it is genuinely the user's call — and the banned body shapes ("forks for the user to call", "decide whether X or Y", "per fork N", "wire it or remove it", "TBD", an Options section with no chosen option, a title ending in "or remove") are named with a tripwire and the incident that prompted it. §1's planning line and §2's "Capture decisions" gain matching clauses: no open decision parked in a task or spec, and a decision is captured as the chosen behaviour, never as the fork it resolved.
 
+## [0.4.0] - 2026-09-07
+
+### Added
+
+- **`LICENSE` (MIT).** The repo is now MIT-licensed so anyone cloning it may install, modify, and redistribute it. Added a License section to `README.md`, and `LICENSE` ships in the release bundle.
+- **`worklog` add-on, offered by an install-time prompt that defaults to yes.** The `worklog`-specific guidance moves out of the always-shipped ruleset into a separate `CLAUDE.starterkit-worklog.md` fragment. `install.sh` / `install.ps1` prompt for it (Enter accepts); opt out with `--no-worklog` (`-NoWorklog` on Windows) or `STARTERKIT_WORKLOG=0`, or install without prompting via `--with-worklog` / `-WithWorklog` / `=1`. Non-interactive runs install it by default. Both `INSTRUCTIONS` guides document the manual add-on step, and `make_bundle.py` ships the fragment.
+
+### Changed
+
+- **De-personalized the shipped ruleset for a public audience.** The `worklog` §10 bullet ("my cross-session task/decision log", pinned to a specific tool) is replaced by a generic pointer to the optional add-on. The §5 emoji example no longer describes one specific machine's kitty/FiraCode setup — it now reads as a general "Nerd Font with no colour-emoji fallback" failure case. `README.md` reframes the kit as one person's opinionated ruleset to fork.
+
 ## [0.3.7] - 2026-09-07
 
 ### Added
