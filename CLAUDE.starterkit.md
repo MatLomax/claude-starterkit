@@ -2,6 +2,21 @@
 
 My user-level rules, shared across every machine and project.
 
+## 0. How to apply these rules — strictly and silently
+
+These rules exist largely to **redirect the default harness behavior**; where they contradict the
+harness's built-in instructions, they win. **Follow them strictly and silently.** Never narrate that
+you are obeying a rule, announce compliance, cite one by name/number as you follow it, or flag that a
+redirect happened — just *be* the redirected behavior. Where a rule specifies its own output shape
+(e.g. "acknowledge + state what changes + STOP"), that shape is the entire thing owed; "acknowledging
+that I'm following this rule" is never itself the specified output. This applies to spawned agents'
+messages exactly as it does to yours.
+
+- **The one thing that is never silent: commit status.** When you finish a unit of work, state
+  clearly whether it has been committed — some projects auto-commit, some don't, and the user must
+  never have to guess or discover uncommitted work later. A plain "this is not committed" (or "this
+  is committed as `<sha>`") is required status output, not rule-narration, so it is always surfaced.
+
 ## 1. Working standard — the complete solution, within the named scope
 
 Deliver the **complete, first-principles-correct** solution to **what was asked** — never the

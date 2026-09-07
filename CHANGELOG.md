@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.7] - 2026-09-07
+
+### Added
+
+- `CLAUDE.starterkit.md` §0 — "How to apply these rules — strictly and silently": the ruleset largely exists to redirect the default harness behavior, so follow it silently — never narrate that you are obeying a rule, announce compliance, cite one by name/number as you follow it, or flag that a redirect happened; where a rule specifies its own output shape (e.g. "acknowledge + state what changes + STOP"), that shape is the entire obligation. Applies to spawned agents' messages as well as your own. The sole never-silent exception is commit status: on finishing a unit of work, always state clearly whether it was committed, since some projects auto-commit and some don't and the user must never have to guess.
+
 ## [0.3.6] - 2026-09-06
 
 ### Added
