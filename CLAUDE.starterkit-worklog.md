@@ -21,3 +21,12 @@ without it.
   change that lands with its worklog untouched leaves the tracker lying. This holds even when the
   worklog MCP isn't attached to the current session — drive `worklog serve --db
   <repo>/.worklog/tasks.db` over its newline-delimited JSON-RPC 2.0 (stdin/stdout) to reach it.
+- **A task's status decides how you correct it — the base §5 "memories are purged, not corrected"
+  exception extends to *unfinished* tasks.** A task that is **not yet implemented/done** is a live
+  spec of intended behaviour, not a record of what happened: when part of it is wrong or outdated,
+  **delete the incorrect content outright** — rewrite the body/section to read true — and never
+  annotate it, append the new answer beside the old, or leave a "was X, now Y" trail. Only once a
+  task is **implemented/done** does it become a historical record, at which point a change to it is a
+  *historical correction* handled like any doc (§5): fix it in place without rewriting what actually
+  happened. **Tripwire:** you catch yourself preserving a superseded requirement "for context" in a
+  still-open task — if the task is open, the superseded text is just wrong now; cut it.
