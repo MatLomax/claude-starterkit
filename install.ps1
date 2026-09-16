@@ -7,6 +7,8 @@ Installs a shared Claude Code user-level ruleset + guardrail hooks (Windows / Po
   - merges hooks + AI-attribution suppression + env (DO_NOT_TRACK, opus-alias
     pin) + opinionated config defaults into settings.json, idempotently and
     WITHOUT clobbering your existing settings.
+  - with the worklog add-on selected, registers the `matlomax` plugin
+    marketplace globally (no plugin is enabled globally — that stays per-project)
 
 Safe to re-run. Restart Claude Code (or start a fresh session) afterwards for the hooks to load.
 Honours $env:CLAUDE_CONFIG_DIR if set, else %USERPROFILE%\.claude.
@@ -106,6 +108,7 @@ Write-Host "statusline command: $SlCmd"
 $mergeScript = @'
 import json, os, sys, shutil, time
 d, pycmd, sl_cmd = sys.argv[1], sys.argv[2], sys.argv[3]
+want_worklog = len(sys.argv) > 4 and sys.argv[4] == "1"
 settings = os.path.join(d, "settings.json")
 hooks = os.path.join(d, "hooks").replace("\\", "/")
 
@@ -176,6 +179,13 @@ DEFAULTS = {
 for k, v in DEFAULTS.items():
     cfg.setdefault(k, v)
 
+# Register the matlomax plugin marketplace globally — ONLY when the worklog add-on
+# is selected. The marketplace becomes known everywhere; NO plugin is enabled
+# globally (enablement stays per-project, via `npx github:MatLomax/claude-plugins`).
+if want_worklog:
+    mkt = cfg.setdefault("extraKnownMarketplaces", {})
+    mkt.setdefault("matlomax", {"source": {"source": "github", "repo": "MatLomax/claude-plugins"}})
+
 with open(settings, "w") as f:
     json.dump(cfg, f, indent=2)
     f.write("\n")
@@ -188,7 +198,8 @@ try {
   $parts = $PyCmd.Split(" ")
   $exe = $parts[0]
   $rest = if ($parts.Length -gt 1) { $parts[1..($parts.Length-1)] } else { @() }
-  & $exe @rest $tmp $ClaudeDir $PyCmd $SlCmd
+  $wlFlag = if ($WantWorklog) { "1" } else { "0" }
+  & $exe @rest $tmp $ClaudeDir $PyCmd $SlCmd $wlFlag
   if ($LASTEXITCODE -ne 0) { throw "settings.json merge failed" }
 } finally {
   Remove-Item $tmp -ErrorAction SilentlyContinue

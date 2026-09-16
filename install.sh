@@ -7,6 +7,8 @@
 #   - merges hooks + AI-attribution suppression + env (DO_NOT_TRACK, opus-alias
 #     pin) + opinionated config defaults into ~/.claude/settings.json,
 #     idempotently and WITHOUT clobbering your existing settings.
+#   - with the worklog add-on selected, registers the `matlomax` plugin
+#     marketplace globally (no plugin is enabled globally — that stays per-project)
 #
 # Safe to re-run. Restart Claude Code (or start a fresh session) afterwards for the hooks to load.
 set -euo pipefail
@@ -89,10 +91,11 @@ echo "installed statusline-command.sh"
 
 # 3. settings.json — idempotent merge (backs up; never clobbers other keys or existing hooks).
 SL_CMD="bash $CLAUDE_DIR/statusline-command.sh"
-python3 - "$CLAUDE_DIR" "$SL_CMD" <<'PY'
+python3 - "$CLAUDE_DIR" "$SL_CMD" "$WANT_WORKLOG" <<'PY'
 import json, os, sys, shutil, time
 d = sys.argv[1]
 sl_cmd = sys.argv[2]
+want_worklog = len(sys.argv) > 3 and sys.argv[3] == "1"
 settings = os.path.join(d, "settings.json")
 hooks = os.path.join(d, "hooks")
 
@@ -164,6 +167,13 @@ DEFAULTS = {
 }
 for k, v in DEFAULTS.items():
     cfg.setdefault(k, v)
+
+# Register the matlomax plugin marketplace globally — ONLY when the worklog add-on
+# is selected. The marketplace becomes known everywhere; NO plugin is enabled
+# globally (enablement stays per-project, via `npx github:MatLomax/claude-plugins`).
+if want_worklog:
+    mkt = cfg.setdefault("extraKnownMarketplaces", {})
+    mkt.setdefault("matlomax", {"source": {"source": "github", "repo": "MatLomax/claude-plugins"}})
 
 with open(settings, "w") as f:
     json.dump(cfg, f, indent=2)
