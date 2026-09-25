@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `install.sh` / `install.ps1` seed `cleanupPeriodDays: 36500` (only if unset), so Claude Code keeps session transcripts instead of purging them after its 30-day default. Transcripts are evidence you may need well after a month (reconstructing past work, time and decisions), and the purge is silent. The `README.md` defaults list and the settings templates in `INSTRUCTIONS.md` / `INSTRUCTIONS-windows.md` list it too.
+
 ## [0.4.3] - 2026-09-16
 
 ### Added

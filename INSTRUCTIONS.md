@@ -72,6 +72,7 @@ commands.
   "askUserQuestionTimeout": "never",
   "worktree": { "baseRef": "fresh" },
   "effortLevel": "high",
+  "cleanupPeriodDays": 36500,
   "hooks": {
     "UserPromptSubmit": [
       { "hooks": [ { "type": "command", "command": "python3 $HOME/.claude/hooks/icon-reminder.py" } ] },

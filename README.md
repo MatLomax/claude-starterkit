@@ -63,7 +63,8 @@ else `~/.claude`.
   `DO_NOT_TRACK=1` and `ANTHROPIC_DEFAULT_OPUS_MODEL=claude-opus-4-8` (pins the `opus` alias to Opus
   4.8); plus `enableArtifact:false` (turns the Artifact tool off), `includeCoAuthoredBy:false`,
   `feedbackDrafts:off`, `promptSuggestionEnabled:false`, `remoteControlAtStartup:false`,
-  `askUserQuestionTimeout:never`, `worktree.baseRef:fresh`, and `effortLevel:high`.
+  `askUserQuestionTimeout:never`, `worktree.baseRef:fresh`, `effortLevel:high`, and
+  `cleanupPeriodDays:36500` (keeps session transcripts instead of purging them after 30 days).
 
 ## Notes
 

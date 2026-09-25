@@ -153,7 +153,8 @@ env.setdefault("DO_NOT_TRACK", "1")
 env.setdefault("ANTHROPIC_DEFAULT_OPUS_MODEL", "claude-opus-4-8")
 
 # Opinionated config defaults that reinforce the guardrails above (no artifacts,
-# no AI co-author line, deterministic worktrees, less UI noise, high effort).
+# no AI co-author line, deterministic worktrees, less UI noise, high effort, session
+# transcripts kept instead of purged after 30 days).
 # Each only if you haven't chosen your own value — never clobbers.
 DEFAULTS = {
     "includeCoAuthoredBy": False,
@@ -164,6 +165,7 @@ DEFAULTS = {
     "promptSuggestionEnabled": False,
     "remoteControlAtStartup": False,
     "effortLevel": "high",
+    "cleanupPeriodDays": 36500,
 }
 for k, v in DEFAULTS.items():
     cfg.setdefault(k, v)

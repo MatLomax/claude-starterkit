@@ -91,6 +91,7 @@ don't replace what's there).
   "askUserQuestionTimeout": "never",
   "worktree": { "baseRef": "fresh" },
   "effortLevel": "high",
+  "cleanupPeriodDays": 36500,
   "hooks": {
     "UserPromptSubmit": [
       { "hooks": [ { "type": "command", "command": "py -3 C:/Users/YOU/.claude/hooks/icon-reminder.py" } ] },
