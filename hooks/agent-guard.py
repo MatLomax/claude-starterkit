@@ -31,7 +31,7 @@ def main():
     ti = data.get("tool_input") or {}
     model = (ti.get("model") or "").strip()
     if not model:
-        deny("Set an explicit `model` on every sub-agent (opus = claude-opus-4-8 for judgment; "
+        deny("Set an explicit `model` on every sub-agent (opus for judgment; "
              "sonnet for mechanical work; haiku for trivial sweeps). Never inherit the session model.")
     sys.exit(0)
 

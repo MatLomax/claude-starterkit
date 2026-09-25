@@ -63,7 +63,7 @@ commands.
 {
   "attribution": { "commit": "", "pr": "", "sessionUrl": false },
   "statusLine": { "type": "command", "command": "bash $HOME/.claude/statusline-command.sh" },
-  "env": { "DO_NOT_TRACK": "1", "ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-opus-4-8" },
+  "env": { "DO_NOT_TRACK": "1" },
   "enableArtifact": false,
   "includeCoAuthoredBy": false,
   "feedbackDrafts": "off",
@@ -96,9 +96,12 @@ commands.
   Skip it if you already have your own `attribution` setting.
 - `statusLine` renders the model / effort / branch / project / context / rate-limit-bar status line.
   Skip it if you already have your own `statusLine` setting.
-- The `env` pins + config defaults reinforce the ruleset (telemetry off; `opus` → Opus 4.8; the
-  Artifact tool off; no AI co-author line; etc.). The installer sets each only if you haven't chosen
-  your own — when pasting manually, drop any you don't want.
+- The `env` opt-out + config defaults reinforce the ruleset (telemetry off; the Artifact tool off;
+  no AI co-author line; etc.). The installer sets each only if you haven't chosen your own — when
+  pasting manually, drop any you don't want.
+- The `opus` alias is left unpinned, so it resolves to the latest Opus. If your `env` carries
+  `"ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-opus-4-8"` from an older copy of this template, delete
+  it (the installer removes exactly that value on re-run and keeps any other).
 
 **4. Restart Claude Code.** The hooks load at session start.
 

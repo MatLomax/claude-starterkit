@@ -313,13 +313,11 @@ project's surfaces and suite. A global hook can't see them; state them here, gat
   burns tokens at that rate across the whole fleet. Reflect the per-phase choice in
   `meta.phases[].model`.
 - **Roster + tiering:**
-  - **Opus tier = `claude-opus-4-8`, pinned. NEVER `claude-opus-5`.** A deliberate, explicit pin —
-    not a stale id; do not "helpfully" bump it.
-  - **Sonnet and Haiku ride the latest automatically** — no id pin needed; use the tier shorthand
-    (`sonnet` for mechanical work, `haiku` for the cheapest grep/inventory sweeps). Only Opus is
-    pinned.
+  - **Always the tier shorthand, never a model id.** `opus`, `sonnet`, `haiku` — each rides the
+    latest release of its tier automatically; writing an id in a prompt or a workflow is redundant
+    at best and stale at worst.
   - **Tier by EFFORT, not by default.** Judgment — architecture, cross-surface semantics, design
-    forks, verify/audit-first investigation, coordinating roots → Opus 4.8. Genuinely mechanical,
+    forks, verify/audit-first investigation, coordinating roots → Opus. Genuinely mechanical,
     pattern-following work with an in-repo precedent to copy → Sonnet (or haiku for trivial
     sweeps). When unsure, pick Opus — under-tiering is the recurring failure mode.
 - **Name agents with a descriptive slug — it's encouraged.** A `name:` that's a short descriptive

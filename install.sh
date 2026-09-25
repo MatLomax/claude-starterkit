@@ -4,8 +4,8 @@
 #   - installs ~/.claude/CLAUDE.starterkit.md and ensure-appends an idempotent
 #     `@./CLAUDE.starterkit.md` import to ~/.claude/CLAUDE.md (never overwrites it)
 #   - installs ~/.claude/hooks/*.py        (the guardrail + primer hooks)
-#   - merges hooks + AI-attribution suppression + env (DO_NOT_TRACK, opus-alias
-#     pin) + opinionated config defaults into ~/.claude/settings.json,
+#   - merges hooks + AI-attribution suppression + env (DO_NOT_TRACK) +
+#     opinionated config defaults into ~/.claude/settings.json,
 #     idempotently and WITHOUT clobbering your existing settings.
 #   - with the worklog add-on selected, registers the `matlomax` plugin
 #     marketplace globally (no plugin is enabled globally — that stays per-project)
@@ -146,11 +146,15 @@ if "attribution" not in cfg:
 if "statusLine" not in cfg:
     cfg["statusLine"] = {"type": "command", "command": sl_cmd}
 
-# env — opt out of telemetry and pin the `opus` alias to Opus 4.8. Per-key, so
-# any value you've already chosen is left untouched.
+# env — opt out of telemetry, per-key, keeping any value you've already chosen.
+# The `opus` alias stays unpinned (it resolves to the latest Opus):
+# ANTHROPIC_DEFAULT_OPUS_MODEL is removed when it is exactly `claude-opus-4-8`
+# (the former kit pin, indistinguishable from a hand-set copy of it); any other
+# value is kept.
 env = cfg.setdefault("env", {})
 env.setdefault("DO_NOT_TRACK", "1")
-env.setdefault("ANTHROPIC_DEFAULT_OPUS_MODEL", "claude-opus-4-8")
+if env.get("ANTHROPIC_DEFAULT_OPUS_MODEL") == "claude-opus-4-8":
+    del env["ANTHROPIC_DEFAULT_OPUS_MODEL"]
 
 # Opinionated config defaults that reinforce the guardrails above (no artifacts,
 # no AI co-author line, deterministic worktrees, less UI noise, high effort, session

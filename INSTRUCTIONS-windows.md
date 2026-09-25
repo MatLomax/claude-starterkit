@@ -82,7 +82,7 @@ don't replace what's there).
 {
   "attribution": { "commit": "", "pr": "", "sessionUrl": false },
   "statusLine": { "type": "command", "command": "pwsh -NoProfile -File \"C:/Users/YOU/.claude/statusline-command.ps1\"" },
-  "env": { "DO_NOT_TRACK": "1", "ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-opus-4-8" },
+  "env": { "DO_NOT_TRACK": "1" },
   "enableArtifact": false,
   "includeCoAuthoredBy": false,
   "feedbackDrafts": "off",
@@ -116,9 +116,12 @@ don't replace what's there).
 - `statusLine` renders the model / effort / branch / project / context / rate-limit-bar status line.
   If `pwsh` (PowerShell 7+) isn't installed, use `powershell` instead of `pwsh` in the command. Skip
   the whole line if you already have your own `statusLine` setting.
-- The `env` pins + config defaults reinforce the ruleset (telemetry off; `opus` → Opus 4.8; the
-  Artifact tool off; no AI co-author line; etc.). The installer sets each only if you haven't chosen
-  your own — when pasting manually, drop any you don't want.
+- The `env` opt-out + config defaults reinforce the ruleset (telemetry off; the Artifact tool off;
+  no AI co-author line; etc.). The installer sets each only if you haven't chosen your own — when
+  pasting manually, drop any you don't want.
+- The `opus` alias is left unpinned, so it resolves to the latest Opus. If your `env` carries
+  `"ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-opus-4-8"` from an older copy of this template, delete
+  it (the installer removes exactly that value on re-run and keeps any other).
 
 **4. Restart Claude Code.** The hooks load at session start.
 

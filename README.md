@@ -60,11 +60,13 @@ else `~/.claude`.
   other and render identically. **Deps:** Unix needs `jq` + `awk` (standard); the Windows `.ps1` is
   native PowerShell and needs nothing extra.
 - **`settings.json` defaults** (merged in, each only if you haven't set your own value): `env` gets
-  `DO_NOT_TRACK=1` and `ANTHROPIC_DEFAULT_OPUS_MODEL=claude-opus-4-8` (pins the `opus` alias to Opus
-  4.8); plus `enableArtifact:false` (turns the Artifact tool off), `includeCoAuthoredBy:false`,
-  `feedbackDrafts:off`, `promptSuggestionEnabled:false`, `remoteControlAtStartup:false`,
-  `askUserQuestionTimeout:never`, `worktree.baseRef:fresh`, `effortLevel:high`, and
-  `cleanupPeriodDays:36500` (keeps session transcripts instead of purging them after 30 days).
+  `DO_NOT_TRACK=1`; plus `enableArtifact:false` (turns the Artifact tool off),
+  `includeCoAuthoredBy:false`, `feedbackDrafts:off`, `promptSuggestionEnabled:false`,
+  `remoteControlAtStartup:false`, `askUserQuestionTimeout:never`, `worktree.baseRef:fresh`,
+  `effortLevel:high`, and `cleanupPeriodDays:36500` (keeps session transcripts instead of
+  purging them after 30 days). The `opus` alias is left unpinned (latest Opus); an
+  `env.ANTHROPIC_DEFAULT_OPUS_MODEL` set to exactly `claude-opus-4-8` is removed on install, any
+  other value is kept.
 
 ## Notes
 

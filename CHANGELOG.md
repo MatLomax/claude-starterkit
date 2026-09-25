@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `install.sh` / `install.ps1` seed `cleanupPeriodDays: 36500` (only if unset), so Claude Code keeps session transcripts instead of purging them after its 30-day default. Transcripts are evidence you may need well after a month (reconstructing past work, time and decisions), and the purge is silent. The `README.md` defaults list and the settings templates in `INSTRUCTIONS.md` / `INSTRUCTIONS-windows.md` list it too.
 
+### Removed
+
+- The `opus` alias pin. `install.sh` / `install.ps1` no longer seed `ANTHROPIC_DEFAULT_OPUS_MODEL=claude-opus-4-8`, so `opus` resolves to the latest Opus like `sonnet` and `haiku` do for their tiers. On re-run, the installers remove that key when it holds exactly the value earlier kit versions seeded; any other value is left as the user's own choice. The settings templates in `INSTRUCTIONS.md` / `INSTRUCTIONS-windows.md`, the `README.md` defaults list, the `CLAUDE.starterkit.md` §4 roster (now: always the tier shorthand, never a model id) and the agent-guard deny message drop the 4.8 pin to match; the README and INSTRUCTIONS files note the removal for manually-pasted settings.
+
 ## [0.4.3] - 2026-09-16
 
 ### Added
