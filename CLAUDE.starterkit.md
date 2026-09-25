@@ -434,6 +434,13 @@ seat + targeted-tests discipline (judgment / per-project command patterns).
     is the no-commits question above.)
   *(The commit-style-primer (`UserPromptSubmit`) injects the file when you ask for a commit/PR, so a
   present one is already in context before the message is written.)*
+- **In a repo whose CHANGELOG follows Keep a Changelog, every notable change goes under
+  `## [Unreleased]`; no version is cut without an explicit release instruction.** A new version
+  heading (`## [x.y.z] - date`), a version bump, or a release tag happens only when I explicitly tell
+  you to cut a release. "Commit this", "ship it" or finishing a feature is not that instruction.
+  Until then, add entries under `[Unreleased]` (creating that heading above the latest version if
+  it's missing). Release tooling often reads the version from the first versioned heading, so an
+  invented one silently renames the next release.
 - **Commit only your own changes, staged explicitly** (see §8) — `git add <the-paths-you-touched>`,
   never `git add -A` / `.` / `-u` / `commit -a`. *(Enforced by the git-guard hook: broad staging is
   denied.)*

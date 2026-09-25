@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `CLAUDE.starterkit.md` §7 — Keep a Changelog rule: in a repo whose CHANGELOG follows Keep a Changelog, every notable change goes under `## [Unreleased]`; a version heading, version bump or release tag is cut only on an explicit release instruction ("commit this" / "ship it" is not one).
 - `install.sh` / `install.ps1` seed `cleanupPeriodDays: 36500` (only if unset), so Claude Code keeps session transcripts instead of purging them after its 30-day default. Transcripts are evidence you may need well after a month (reconstructing past work, time and decisions), and the purge is silent. The `README.md` defaults list and the settings templates in `INSTRUCTIONS.md` / `INSTRUCTIONS-windows.md` list it too.
 
 ### Removed
