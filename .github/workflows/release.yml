@@ -100,3 +100,5 @@ jobs:
           name: v${{ steps.ver.outputs.version }}
           body_path: release_notes.md
           files: dist/claude-starterkit-${{ steps.ver.outputs.version }}.zip
+          # A new version is the latest release; a dispatch backfill of an older tag never is.
+          make_latest: ${{ github.event_name == 'push' }}
