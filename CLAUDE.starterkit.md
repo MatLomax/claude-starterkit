@@ -159,6 +159,21 @@ to done** — never "make progress and hand back". It carries two fixed meanings
   completeness (the parent's own subtree deepened), so it does NOT loosen the §1/Scope ban on
   annexing nearby work: a genuinely *different* parent stays out of scope. Surface the growth (the
   new children land as tracked nodes that turn — §3), then complete them too.
+- **A drive never runs more than 3 review-and-fix rounds.** The round cap below binds a drive too:
+  finishing the work is the drive's job, but a fourth review round is the user's call, not the loop's.
+
+### Review-and-fix loops stop after 3 rounds and report
+
+A loop that runs without the user in it — review, fix the findings, review again — stops after **3
+rounds** and reports: what each round found and fixed, what is still open, and what a further round
+would target. The user decides whether a fourth round happens. This holds under "drive", and it holds
+whether the rounds run in the main conversation or inside a subagent. Each round's reviewer finds
+*something*; without a cap the loop never converges on its own, it just keeps spending. **Tripwire:**
+you are about to spawn a review (or a fix for a review's findings) and this is the fourth one since
+the user last spoke — stop and report instead. **Real incident:** an unattended session ran four
+adversarial review rounds plus their fix rounds overnight, and the round-4 fix agent alone ran for six
+hours. *(Prose-only: a hook cannot tell a review round from other work. The spend-guard hook (§4) is
+the backstop that stops a runaway loop regardless.)*
 
 ### Scope — do only what was named; don't wander
 
@@ -333,8 +348,25 @@ project's surfaces and suite. A global hook can't see them; state them here, gat
   suite, once, at the very end. When orchestrating a wave of concurrent agents sharing the tree, gate
   only after EVERY agent has returned (mid-wave, others' half-written edits make the gates report reds
   that belong to in-flight work).
+- **Spend is capped; at the cap, stop and report.** Two limits, in API-price-weighted tokens (input
+  x1, cache write x1.25, cache read x0.1, output x5):
+  - **Per prompt — `PROMPT_SPEND_LIMIT`, default 3M:** everything the main conversation and its
+    subagents spend after the user's last message. Task notifications and `/loop` wakeups do not
+    reset it; the user's next message does.
+  - **Per Workflow run — `WORKFLOW_SPEND_LIMIT`, default 10M:** the whole spend of one Workflow run's
+    agents, over the run's life. Workflow spend does not count toward the prompt limit.
 
-*Enforcement note:* the agent-guard `PreToolUse` hook (matcher `Agent`) denies a sub-agent spawn that
+  At a limit every tool call in that scope is denied — do not retry or route around it: end the turn,
+  and report what was done, what is open, and what the next step would cost (a Workflow agent returns
+  what it has, marked incomplete). Measured against ~2,700 real prompts, 95% spend under 1.25M and 40
+  passed 3M; past Workflow runs of 15-32 agents spent 4.3-5.4M; the runaway that prompted this spent
+  104.5M after one reply. A planned big run raises the limit for its session
+  (`PROMPT_SPEND_LIMIT=10M claude`) or simply continues on the user's next message. For unattended
+  `claude -p` runs, also pass the native `--max-budget-usd`, which caps dollars and stops background
+  subagents at the cap.
+
+*Enforcement note:* the spend-guard `PreToolUse` hook (all tools) enforces both spend limits, in
+subagents and Workflow agents as well as the main thread. The agent-guard `PreToolUse` hook (matcher `Agent`) denies a sub-agent spawn that
 omits `model`. Prose-only (not hookable): the teammate /
 left-open ban, explicit-model on
 **workflow-internal** `agent()` calls (invisible to a PreToolUse hook), and the orchestrator-judge

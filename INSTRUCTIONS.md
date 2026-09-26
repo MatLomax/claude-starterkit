@@ -84,6 +84,7 @@ commands.
       { "matcher": "Agent",           "hooks": [ { "type": "command", "command": "python3 $HOME/.claude/hooks/agent-guard.py" } ] },
       { "matcher": "Bash",            "hooks": [ { "type": "command", "command": "python3 $HOME/.claude/hooks/git-guard.py" } ] },
       { "matcher": "Bash|PowerShell", "hooks": [ { "type": "command", "command": "python3 $HOME/.claude/hooks/sleep-guard.py" } ] },
+      {                               "hooks": [ { "type": "command", "command": "python3 $HOME/.claude/hooks/spend-guard.py" } ] },
       { "matcher": "Write|Edit",      "hooks": [ { "type": "command", "command": "python3 $HOME/.claude/hooks/nul-guard.py" } ] }
     ],
     "Stop": [
