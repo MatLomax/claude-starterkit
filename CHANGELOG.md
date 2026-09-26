@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-09-27
+
+### Changed
+
+- `hooks/tie-break-guard.py` checks record-keeping behaviour instead of phrasing. It blocks turn-end, at most once per turn, when the reply asks permission to keep a record ("want me to log it?", "shall I add a task?"), claims in the first person that a record was made ("I've logged it as a task") while no worklog write or file write happened in the turn, or promises one ("I'll add a task for that") with nothing written and no background work pending. It reads the turn's tool calls from the transcript. Fenced code, inline code, `>` blockquotes and double-quoted text are stripped before matching, so quoting or describing a trigger phrase no longer trips it. The block reason names the phrase that matched. The "verify" triggers ("still need to verify", "haven't verified", "want me to check/verify/confirm") are gone: they blocked honest status lines about limits and pushed agents toward open-ended proof-gathering. Prompted by the hook blocking two replies that only quoted its own trigger phrases, and by an unattended review loop that treated demands for more proof as bookkeeping it owed.
+- `CLAUDE.starterkit.md` §3 tie-break: bookkeeping is defined as keeping records true (tracker status, recorded findings and decisions, promised notes and memories). Checking a fact before stating it is the §2 read-enough obligation, not bookkeeping, and neither licenses open-ended evidence trails or attribution rigour beyond the task. The enforcement note describes the new hook behaviour. `README.md`'s hook list matches.
+
 ## [0.5.0] - 2026-09-26
 
 ### Added

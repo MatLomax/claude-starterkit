@@ -55,8 +55,9 @@ else `~/.claude`.
     the model stops and reports: `PROMPT_SPEND_LIMIT` (default `3M` API-price-weighted tokens) for
     the main conversation + subagents since your last message, and `WORKFLOW_SPEND_LIMIT` (default
     `10M`) per Workflow run. `off` disables either.
-  - `tie-break-guard.py` (Stop) — blocks turn-end if the reply defers owed bookkeeping
-    ("want me to log it?", "still need to verify").
+  - `tie-break-guard.py` (Stop) — blocks turn-end if the reply leaves record-keeping undone:
+    asks permission to log a gap, claims a record with no write behind it, or promises one and
+    ends the turn.
 - **`attribution` setting** — sets `{commit:"", pr:"", sessionUrl:false}` (no AI attribution on
   commits/PRs), only if you haven't already configured it.
 - **statusline** → `~/.claude/statusline-command.sh` (Unix) or `statusline-command.ps1` (Windows),

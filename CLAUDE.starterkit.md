@@ -288,23 +288,28 @@ test, and audit it touches is finished and green.**
   NOT surfacing — the conversation scrolls away and nothing can retire it. Directly related → do it
   now; clearly different → a new open sub-task under the same parent (leave it open, and don't mark
   the parent complete).
-- **THE TIE-BREAK (the loophole that keeps biting):** recording a gap / verifying a fact is
-  bookkeeping you ALWAYS owe — it is never the "action" an interrogative withholds. When you catch
-  yourself asking "want me to log it?" about a gap, or writing "here are the results + here's what I
-  still need to verify" — STOP: log it / verify it yourself, THEN report. The follow-up is always
-  "then do it" — asking wastes the user's time.
+- **THE TIE-BREAK (the loophole that keeps biting):** bookkeeping is keeping records true —
+  tracker status current, findings and decisions recorded, and any note or memory you said you'd
+  write actually written. It is owed, never the "action" an interrogative withholds. When you catch
+  yourself asking "want me to log it?" about a gap, or saying you'll note something and ending the
+  turn without writing it — STOP: write the record, THEN report. The follow-up is always "then do
+  it" — asking wastes the user's time.
+  - **Bookkeeping is not proof-gathering.** Checking a fact before you state it is the read-enough
+    obligation (§2), not bookkeeping. Neither licenses open-ended evidence trails, counter-evidence,
+    or attribution rigour beyond what the task asked. An honest limit ("not tested on the hardware")
+    stated plainly is a status, not a debt.
   - **Scope — this is about work that would otherwise be LOST, not the work in front of us.** The
     tie-break covers a gap the conversation will scroll away from: an incidental finding, a
-    contradicted memory/doc, a big-picture item with no tracked home, an unverified fact you're about
-    to hand back as true. It does NOT cover the very thing we are actively fixing this turn. "Want me
-    to write that down?" / "shall I note this?" about the current, in-flight work — something already
-    on-screen and about to be done or decided — is **churn, not owed bookkeeping**: don't tack it on,
-    and don't treat a genuine user-decision fork ("do the shared-lib fix, or leave it?") as a
-    deferral. Offer the fork plainly and stop.
-  - *(Enforced by the tie-break `Stop` hook — blocks the turn if the final message defers owed
-    bookkeeping and re-prompts to do it first; loop-safe, fires at most once per turn. The hook
-    scopes its permission-question triggers to bookkeeping context so a bare "want me to fix X?"
-    about current work no longer trips it.)*
+    contradicted memory/doc, a big-picture item with no tracked home. It does NOT cover the very
+    thing we are actively fixing this turn. "Want me to write that down?" / "shall I note this?"
+    about the current, in-flight work — something already on-screen and about to be done or decided
+    — is **churn, not owed bookkeeping**: don't tack it on, and don't treat a genuine user-decision
+    fork ("do the shared-lib fix, or leave it?") as a deferral. Offer the fork plainly and stop.
+  - *(Enforced by the tie-break `Stop` hook — blocks turn-end, at most once per turn, when the reply
+    asks permission to keep a record, claims in the first person that a record was made with no
+    worklog or file write in the turn, or promises one at turn end with nothing written and no
+    background work pending. Quoted and code text is ignored, so describing a trigger phrase never
+    trips it.)*
 - **Tests must exercise pathways that ACTUALLY EXIST.** A test/fixture must construct inputs the real
   product can actually produce and route them through the code a real user reaches. A fixture that
   "passes" via a spelling/input/path no real user can produce is a **FALSE GREEN** — worse than no
