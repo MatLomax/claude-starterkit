@@ -102,6 +102,7 @@ don't replace what's there).
       { "matcher": "AskUserQuestion", "hooks": [ { "type": "command", "command": "py -3 C:/Users/YOU/.claude/hooks/deny-askuserquestion.py" } ] },
       { "matcher": "Agent",           "hooks": [ { "type": "command", "command": "py -3 C:/Users/YOU/.claude/hooks/agent-guard.py" } ] },
       { "matcher": "Bash",            "hooks": [ { "type": "command", "command": "py -3 C:/Users/YOU/.claude/hooks/git-guard.py" } ] },
+      { "matcher": "Bash|PowerShell", "hooks": [ { "type": "command", "command": "py -3 C:/Users/YOU/.claude/hooks/sleep-guard.py" } ] },
       { "matcher": "Write|Edit",      "hooks": [ { "type": "command", "command": "py -3 C:/Users/YOU/.claude/hooks/nul-guard.py" } ] }
     ],
     "Stop": [

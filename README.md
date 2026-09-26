@@ -37,7 +37,7 @@ else `~/.claude`.
   The installer offers it via a prompt that **defaults to yes** (press Enter to install). Opt out with
   `--no-worklog` / `-NoWorklog`, or `STARTERKIT_WORKLOG=0`; non-interactive runs install it by default.
   Skip it and the base ruleset is unaffected.
-- **8 hooks** → `~/.claude/hooks/`, wired into `settings.json`:
+- **9 hooks** → `~/.claude/hooks/`, wired into `settings.json`:
   - `correction-primer.py` (UserPromptSubmit) — nudges you when a message reads as a
     correction/question, not a start-imperative.
   - `commit-style-primer.py` (UserPromptSubmit) — injects a repo's `.git/COMMIT_STYLE.md` when you
@@ -48,6 +48,9 @@ else `~/.claude`.
   - `git-guard.py` (PreToolUse) — blocks broad staging (`git add -A/./-u`, `commit -a`) and
     whole-tree mutations (`reset --hard`, `checkout .`, `restore .`, `clean -f`, create-form `stash`).
   - `nul-guard.py` (PreToolUse) — blocks a `Write`/`Edit` whose content carries a NUL/stray control byte.
+  - `sleep-guard.py` (PreToolUse) — blocks a `Bash`/`PowerShell` command that sleeps (`sleep`,
+    `Start-Sleep`, inline `time.sleep`/`setTimeout`): wait on background work via its completion
+    notification, not by polling.
   - `tie-break-guard.py` (Stop) — blocks turn-end if the reply defers owed bookkeeping
     ("want me to log it?", "still need to verify").
 - **`attribution` setting** — sets `{commit:"", pr:"", sessionUrl:false}` (no AI attribution on

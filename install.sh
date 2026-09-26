@@ -115,6 +115,7 @@ WANT = {
         ("AskUserQuestion", "deny-askuserquestion.py"),
         ("Agent", "agent-guard.py"),
         ("Bash", "git-guard.py"),
+        ("Bash|PowerShell", "sleep-guard.py"),
         ("Write|Edit", "nul-guard.py"),
     ],
     "Stop": [

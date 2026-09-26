@@ -539,10 +539,27 @@ Lifecycle, every time:
   cap.** The harness force-backgrounds any foreground command at 120s: the first two minutes are burned
   and the inline output is lost, so you re-run it anyway. If a command could plausibly exceed ~90s — a DB
   scan / dump / bulk write over a large table, an extract, a build, a fetch across many repos, anything
-  that streams a lot of rows — launch it with `run_in_background: true` **immediately**, then poll its
-  output file or await the completion event and read the result. Foreground is for genuinely quick
-  commands only; discovering the limit by hitting it is the tell you mis-scoped the task. Redirect the
-  command's own output to a file (per the raw-output rule) so the backgrounded run is inspectable.
+  that streams a lot of rows — launch it with `run_in_background: true` **immediately**. Foreground is
+  for genuinely quick commands only; discovering the limit by hitting it is the tell you mis-scoped the
+  task. Redirect the command's own output to a file (per the raw-output rule) so the backgrounded run is
+  inspectable.
+- **Wait for a background job by ending the turn — never by polling it.** A backgrounded command or
+  agent sends a completion notification when it finishes; once it is launched, carry on with other work
+  or **end your turn**, and read the output file when the notification wakes you. This holds in a
+  **subagent** too: a background subagent's background commands and child agents keep running past its
+  turn, and it is notified as each one ends. **Never wait with `sleep`** — not `sleep N; tail log`, not
+  an `until …; do sleep` loop, not `time.sleep` in an inline script. Every poll re-sends the whole
+  context, and a sleep past the ~5-minute prompt-cache lifetime re-writes the entire context into the
+  cache on the next call. **`Monitor` is not a loophole:** use it only for external state that has no
+  completion event of its own (CI, a remote queue, a PR), with a script that prints only when the state
+  actually changes — every line it emits is a model turn, and so is each re-arm at its deadline. Never
+  `Monitor` a job you started yourself; its completion notification is free. **Tripwire:** you write
+  "I'll wait for the notification" and your next call checks on progress — stop and end the turn.
+  **Real incident:** a background subagent with a ~700k-token context said exactly that, then ran
+  `sleep 595` loops for five hours while the notifications it needed kept arriving; about half of that
+  session tree's spend was polling and the re-caching it caused. *(Enforced by the sleep-guard
+  `PreToolUse` hook: a `Bash`/`PowerShell` command that sleeps is denied. A `Monitor` script's own loop
+  is not covered and costs no tokens.)*
 
 > The `CLAUDE.starterkit-worklog.md` add-on (the installer's prompt defaults to yes; `--no-worklog`
 > skips it) points "a tracked node" / "the task graph" throughout this ruleset at a concrete tool. If
