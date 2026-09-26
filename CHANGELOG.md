@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-09-26
+
 ### Added
 
 - `hooks/sleep-guard.py` (PreToolUse, matcher `Bash|PowerShell`) — denies any shell command that sleeps: `sleep` / `/bin/sleep` in command position (including inside loops, `$(…)`, `-c` strings and after wrappers like `nohup` / `timeout N`), PowerShell `Start-Sleep` / `[Thread]::Sleep(`, and inline `time.sleep(` / `asyncio.sleep(` / `setTimeout(`. Mentions pass: a quoted `grep "sleep 60"`, and heredoc text fed to anything other than a shell or an interpreter (a `git commit -F -` message, `cat > file`); a sleep inside a script file the command runs is not checked. Wired by `install.sh` / `install.ps1` and listed in the `INSTRUCTIONS.md` / `INSTRUCTIONS-windows.md` settings templates and the `README.md` hook list. Prompted by a background subagent that ran `sleep 595` polling loops for five hours on a ~700k-token context, re-writing the whole context into the prompt cache on almost every check; about half that session tree's spend went on polling.
