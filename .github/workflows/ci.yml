@@ -257,7 +257,8 @@ jobs:
           foreach ($run in $runs.GetEnumerator()) {
             $env:CLAUDE_CONFIG_DIR = Join-Path $env:RUNNER_TEMP "ps51-claude$n"
             $n++
-            powershell -NoProfile -Command ($run.Value + $check)
+            # 5.1 drops embedded double quotes from a native command's arguments, so pass the script encoded.
+            powershell -NoProfile -EncodedCommand ([Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($run.Value + $check)))
             if ($LASTEXITCODE -ne 0) { throw "5.1 $($run.Key) failed or changed the caller's session (exit $LASTEXITCODE)" }
             if (-not (Test-Path (Join-Path $env:CLAUDE_CONFIG_DIR "settings.json"))) { throw "5.1 $($run.Key) did not install" }
           }
