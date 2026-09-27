@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `CLAUDE.starterkit.md` §7 — "Build output is always gitignored, never committed": generated output (`dist/`, `build/`, `.svelte-kit/`, `__pycache__/`, `node_modules/`, coverage, bundles, build and test logs) is covered by the repo's `.gitignore`; found untracked or tracked, it gets an ignore pattern (and `git rm --cached`) in the same change instead of a commit, including under "commit everything".
+
 ## [0.5.1] - 2026-09-27
 
 ### Changed

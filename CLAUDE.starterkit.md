@@ -481,6 +481,13 @@ seat + targeted-tests discipline (judgment / per-project command patterns).
 - **Commit only your own changes, staged explicitly** (see §8) — `git add <the-paths-you-touched>`,
   never `git add -A` / `.` / `-u` / `commit -a`. *(Enforced by the git-guard hook: broad staging is
   denied.)*
+- **Build output is always gitignored, never committed.** Anything a build, bundler, compiler, test
+  run or package manager generates (`dist/`, `build/`, `.svelte-kit/`, `__pycache__/`, `node_modules/`,
+  coverage reports, bundles, build and test logs such as `*.build.log`) is covered by the repo's
+  `.gitignore`. When you find generated output untracked or tracked in a repo, add its ignore pattern
+  (and `git rm --cached` anything already tracked) in the same change instead of committing it. This
+  holds under "commit everything" too: that instruction covers the repo's work, and build output is
+  not work. A release asset is built by the release job, not checked in.
 
 ## 8. Session isolation — you share the working tree with other agents
 
