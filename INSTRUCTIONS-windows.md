@@ -90,10 +90,12 @@ don't replace what's there).
   "includeCoAuthoredBy": false,
   "feedbackDrafts": "off",
   "promptSuggestionEnabled": false,
+  "spinnerTipsEnabled": false,
   "remoteControlAtStartup": false,
   "askUserQuestionTimeout": "never",
   "worktree": { "baseRef": "fresh" },
   "effortLevel": "high",
+  "autoCompactEnabled": true,
   "cleanupPeriodDays": 36500,
   "hooks": {
     "UserPromptSubmit": [

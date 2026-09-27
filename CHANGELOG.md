@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `CLAUDE.starterkit.md` §4 moves to `CLAUDE.starterkit-agents.md`, and §7, §8 and §9 to `CLAUDE.starterkit-git.md`. The ruleset imports both where the sections stood, keeping their numbers so every `§N` reference still resolves, and the installers copy them beside it (`make_bundle.py` bundles them). Each file is now under Claude Code's 40k-character per-file warning (the main ruleset is about 36.6k); everything still loads every session. Listed in `README.md` and in the manual install and uninstall steps of `INSTRUCTIONS.md` / `INSTRUCTIONS-windows.md`.
 
+- `install.sh` / `install.ps1` seed `autoCompactEnabled: true` and `spinnerTipsEnabled: false` (each only if unset), so a session compacts automatically as its context fills (the compact instructions and hooks then carry the work across) and the spinner shows no tips. The `README.md` defaults list and the settings templates in `INSTRUCTIONS.md` / `INSTRUCTIONS-windows.md` list both.
+
 ### Fixed
 
 - `hooks/git-guard.py` broad-staging checks read the argv of each `git add` / `git commit` in the command line instead of regex-matching the whole line. A `-a` belonging to another command (`rsync -a`, `grep -a`, `ls -a`), a `-a` inside a commit message or heredoc, and a `git` mentioned as an argument (`echo git add .`) no longer deny the command. Forms the regexes missed are now denied: git's own options before the subcommand (`git -C <dir> add -A`), combined short flags (`git commit -qam`, `git add -Av`), and a broad path after `--` (`git add -- .`).

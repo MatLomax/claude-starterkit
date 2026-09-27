@@ -187,8 +187,9 @@ if env.get("ANTHROPIC_DEFAULT_OPUS_MODEL") == "claude-opus-4-8":
     del env["ANTHROPIC_DEFAULT_OPUS_MODEL"]
 
 # Opinionated config defaults that reinforce the guardrails above (no artifacts,
-# no AI co-author line, deterministic worktrees, less UI noise, high effort, session
-# transcripts kept instead of purged after 30 days).
+# no AI co-author line, deterministic worktrees, less UI noise (no suggestions, no spinner
+# tips), high effort, automatic compaction on, session transcripts kept instead of purged
+# after 30 days).
 # Each only if you haven't chosen your own value — never clobbers.
 DEFAULTS = {
     "includeCoAuthoredBy": False,
@@ -197,8 +198,10 @@ DEFAULTS = {
     "worktree": {"baseRef": "fresh"},
     "feedbackDrafts": "off",
     "promptSuggestionEnabled": False,
+    "spinnerTipsEnabled": False,
     "remoteControlAtStartup": False,
     "effortLevel": "high",
+    "autoCompactEnabled": True,
     "cleanupPeriodDays": 36500,
 }
 for k, v in DEFAULTS.items():

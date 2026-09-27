@@ -92,11 +92,12 @@ else `~/.claude`.
 - **`settings.json` defaults** (merged in, each only if you haven't set your own value): `env` gets
   `DO_NOT_TRACK=1`; plus `enableArtifact:false` (turns the Artifact tool off),
   `includeCoAuthoredBy:false`, `feedbackDrafts:off`, `promptSuggestionEnabled:false`,
-  `remoteControlAtStartup:false`, `askUserQuestionTimeout:never`, `worktree.baseRef:fresh`,
-  `effortLevel:high`, and `cleanupPeriodDays:36500` (keeps session transcripts instead of
-  purging them after 30 days). The `opus` alias is left unpinned (latest Opus); an
-  `env.ANTHROPIC_DEFAULT_OPUS_MODEL` set to exactly `claude-opus-4-8` is removed on install, any
-  other value is kept.
+  `spinnerTipsEnabled:false` (no tips under the spinner), `remoteControlAtStartup:false`,
+  `askUserQuestionTimeout:never`, `worktree.baseRef:fresh`, `effortLevel:high`,
+  `autoCompactEnabled:true` (compacts automatically as context fills), and
+  `cleanupPeriodDays:36500` (keeps session transcripts instead of purging them after 30 days).
+  The `opus` alias is left unpinned (latest Opus); an `env.ANTHROPIC_DEFAULT_OPUS_MODEL` set to
+  exactly `claude-opus-4-8` is removed on install, any other value is kept.
 
 ## Notes
 
