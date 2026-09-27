@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strings"
 )
@@ -99,7 +100,7 @@ var Recommended = []Plugin{
 				return true, ""
 			},
 			Command: func(p Platform) []string {
-				return []string{"bash", filepath.Join(ripwirePrefix(p), "share", "ripwire", "skills", "install.sh"), "--hook"}
+				return []string{"bash", path.Join(filepath.ToSlash(ripwirePrefix(p)), "share", "ripwire", "skills", "install.sh"), "--hook"}
 			},
 		}},
 	},

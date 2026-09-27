@@ -298,6 +298,8 @@ func TestShellArgQuotesOnlyWhenNeeded(t *testing.T) {
 		{"/Users/John Smith/.claude/hooks/git-guard.py", false, `"/Users/John Smith/.claude/hooks/git-guard.py"`},
 		{"C:/Users/John Smith/.claude/hooks/git-guard.py", true, `"C:/Users/John Smith/.claude/hooks/git-guard.py"`},
 		{"/home/a,b/x.py", false, "/home/a,b/x.py"},
+		{"C:/Users/RUNNER~1/.claude/hooks/x.py", true, "C:/Users/RUNNER~1/.claude/hooks/x.py"},
+		{"~/x.py", false, `"~/x.py"`},
 		{"C:/Users/a,b/x.py", true, `"C:/Users/a,b/x.py"`},
 		{"/home/o'brien/x.py", false, `"/home/o'brien/x.py"`},
 		{"/home/a$b`c\"d\\e/x.py", false, `"/home/a\$b\` + "`" + `c\"d\\e/x.py"`},

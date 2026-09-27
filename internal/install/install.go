@@ -165,11 +165,10 @@ func ensureImport(o Options, claudeMD, line, name, note string) error {
 // hooksDir is the hooks directory as it appears inside hook commands: forward slashes on Windows,
 // where the command runs through a shell that treats backslashes as escapes.
 func (o Options) hooksDir() string {
-	d := filepath.Join(o.ClaudeDir, "hooks")
 	if o.Windows {
-		return strings.ReplaceAll(d, `\`, "/")
+		return strings.ReplaceAll(filepath.Join(o.ClaudeDir, "hooks"), `\`, "/")
 	}
-	return d
+	return path.Join(filepath.ToSlash(o.ClaudeDir), "hooks")
 }
 
 // hookCommand is the settings.json command that runs the hook script, its path quoted when needed.
@@ -213,8 +212,9 @@ func (o Options) unixStatuslinePath() string {
 // hook commands through on Windows when Git Bash is missing; a $ or ` in the path is escaped for
 // Git Bash, which PowerShell reads differently.
 func shellArg(p string, windows bool) string {
-	plain := p != "" && strings.IndexFunc(p, func(r rune) bool {
-		if unicode.IsLetter(r) || unicode.IsDigit(r) || strings.ContainsRune("/._-:+=@%", r) {
+	plain := p != "" && p[0] != '~' && strings.IndexFunc(p, func(r rune) bool {
+		// A tilde is literal except at the start of a word (a Windows short name such as RUNNER~1).
+		if unicode.IsLetter(r) || unicode.IsDigit(r) || strings.ContainsRune("/._-:+=@%~", r) {
 			return false
 		}
 		// A comma separates array elements in a PowerShell argument; sh reads it literally.
