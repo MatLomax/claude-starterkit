@@ -597,13 +597,19 @@ Lifecycle, every time:
   cache on the next call. **`Monitor` is not a loophole:** use it only for external state that has no
   completion event of its own (CI, a remote queue, a PR), with a script that prints only when the state
   actually changes — every line it emits is a model turn, and so is each re-arm at its deadline. Never
-  `Monitor` a job you started yourself; its completion notification is free. **Tripwire:** you write
+  `Monitor` a job you started yourself; its completion notification is free. **A disguised delay is a
+  sleep, and a guard is not a puzzle:** `timeout N tail -f /dev/null`, `read -t N`, `ping localhost`,
+  a busy loop, or any other form picked because the sleep-guard does not catch it, is banned exactly as
+  `sleep` is. Waiting on external state that a tool can block on uses that tool's own blocking wait,
+  run in the background (`gh run watch <id> --exit-status`, `kubectl wait`, `docker wait`); only state
+  with no such wait goes to `Monitor`. And a check on external state is itself a command that can hang
+  on the network: run it in the background too. **Tripwire:** you write
   "I'll wait for the notification" and your next call checks on progress — stop and end the turn.
   **Real incident:** a background subagent with a ~700k-token context said exactly that, then ran
   `sleep 595` loops for five hours while the notifications it needed kept arriving; about half of that
   session tree's spend was polling and the re-caching it caused. *(Enforced by the sleep-guard
-  `PreToolUse` hook: a `Bash`/`PowerShell` command that sleeps is denied. A `Monitor` script's own loop
-  is not covered and costs no tokens.)*
+  `PreToolUse` hook: a `Bash`/`PowerShell` command that sleeps is denied, including the common
+  disguised delays. A `Monitor` script's own loop is not covered and costs no tokens.)*
 
 > The `CLAUDE.starterkit-worklog.md` add-on (the installer's prompt defaults to yes; `--no-worklog`
 > skips it) points "a tracked node" / "the task graph" throughout this ruleset at a concrete tool. If

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `hooks/sleep-guard.py` also denies disguised delays: `tail -f /dev/null` (with or without a `timeout` around it), `read -t N`, `ping` of the local host, `usleep` / `gsleep`, cmd's `timeout /t N`, PowerShell `Wait-Event -Timeout`, and Perl's `select(undef, undef, undef, N)` in an inline script. Real reads, tails of real files and pings of real hosts still pass. The deny message names the sanctioned waits (`gh run watch <id> --exit-status` in the background, or `Monitor`) and says not to route around the guard.
+- `CLAUDE.starterkit.md` §10 "Wait for a background job by ending the turn": a disguised delay is a sleep and a guard is not a puzzle; external state a tool can block on is waited on with that tool's own blocking wait in the background (`gh run watch`, `kubectl wait`, `docker wait`), leaving `Monitor` for state with no such wait; and a check on external state runs in the background too, since it can hang on the network. `README.md`'s hook list matches.
+
 ## [0.5.2] - 2026-09-27
 
 ### Added

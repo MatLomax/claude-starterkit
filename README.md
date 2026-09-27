@@ -49,8 +49,9 @@ else `~/.claude`.
     whole-tree mutations (`reset --hard`, `checkout .`, `restore .`, `clean -f`, create-form `stash`).
   - `nul-guard.py` (PreToolUse) — blocks a `Write`/`Edit` whose content carries a NUL/stray control byte.
   - `sleep-guard.py` (PreToolUse) — blocks a `Bash`/`PowerShell` command that sleeps (`sleep`,
-    `Start-Sleep`, inline `time.sleep`/`setTimeout`): wait on background work via its completion
-    notification, not by polling.
+    `Start-Sleep`, inline `time.sleep`/`setTimeout`, and disguised delays such as
+    `timeout N tail -f /dev/null`, `read -t N`, `ping localhost`): wait on background work via its
+    completion notification, and on external state via the tool's own blocking wait, not by polling.
   - `spend-guard.py` (PreToolUse, all tools) — blocks every tool call once spend passes a limit, so
     the model stops and reports: `PROMPT_SPEND_LIMIT` (default `3M` API-price-weighted tokens) for
     the main conversation + subagents since your last message, and `WORKFLOW_SPEND_LIMIT` (default
