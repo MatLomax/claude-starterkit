@@ -26,6 +26,7 @@ is denied unless the call has `run_in_background: true`.
 import json
 import os
 import re
+import shlex
 import sys
 
 CMD_POS = r"(?:^|[;&|(`{\n]|\$\(|\b(?:do|then|else|nohup|env|exec|xargs|command|builtin)\s+|\btimeout\s+\S+\s+|-c\s+[\"'])"
@@ -47,10 +48,77 @@ CODE_PATTERNS = [
 ]
 SHELL = re.compile(r"(?:^|[\s;&|(/])(?:ba|z|da|k)?sh\b|\b(?:pwsh|powershell)\b", re.IGNORECASE)
 INTERPRETER = re.compile(r"(?:^|[\s;&|(/])(?:python[\d.]*|node|deno|bun|ruby|perl|php)\b")
-RUN_WAIT = re.compile(
-    r"(?:" + CMD_POS + r"|\b(?:python[\d.]*|py)(?:\s+-\S+)*\s+)\s*"
-    r"(?:\"[^\"\n]*|'[^'\n]*|[^\s;&|\"']*)gh-run-wait\.py\b"
-)
+HELPER = "gh-run-wait.py"
+PYTHON = re.compile(r"^(?:python[\d.]*|py)(?:\.exe)?$", re.IGNORECASE)
+WRAPPERS = {"env", "nohup", "exec", "command", "builtin", "time", "nice", "stdbuf", "sudo"}
+PY_VALUE_FLAGS = {"-W", "-X", "-Q"}
+SEPARATORS = {";", "&", "&&", "|", "||", "(", ")", "{", "}"}
+
+
+def basename(token):
+    return token.replace("\\", "/").rsplit("/", 1)[-1]
+
+
+def segments(line):
+    """The simple commands on one line, as token lists (quotes removed, operators split off)."""
+    lex = shlex.shlex(line, posix=True, punctuation_chars=";&|(){}")
+    lex.whitespace_split = True
+    seg = []
+    for tok in lex:
+        if tok in SEPARATORS or set(tok) <= set(";&|(){}"):
+            if seg:
+                yield seg
+            seg = []
+        else:
+            seg.append(tok)
+    if seg:
+        yield seg
+
+
+def runs_helper(seg):
+    """Whether this simple command runs gh-run-wait.py (a --help call returns at once, so it doesn't count)."""
+    i = 0
+    while i < len(seg):  # skip wrappers, env assignments and a timeout's duration
+        t = seg[i]
+        if "=" in t and not t.startswith("-") or basename(t) in WRAPPERS or t.startswith("-") and i > 0:
+            i += 1
+        elif basename(t) == "timeout":
+            i += 1
+            while i < len(seg) and seg[i].startswith("-"):
+                i += 1
+            i += 1
+        else:
+            break
+    if i >= len(seg):
+        return False
+    head, args = basename(seg[i]), seg[i + 1:]
+    if head in ("bash", "sh", "zsh", "dash", "ksh") and "-c" in args:
+        code = args[args.index("-c") + 1] if args.index("-c") + 1 < len(args) else ""
+        return invokes_helper(code)
+    if PYTHON.match(head):
+        j = 0
+        while j < len(args) and args[j].startswith("-"):
+            if args[j] in ("-c", "-m"):
+                return False
+            j += 2 if args[j] in PY_VALUE_FLAGS else 1
+        if j >= len(args):
+            return False
+        head, args = basename(args[j]), args[j + 1:]
+    return head == HELPER and not ({"-h", "--help"} & set(args))
+
+
+def invokes_helper(cmd):
+    """Whether the command runs gh-run-wait.py, directly or through a Python interpreter."""
+    for line in split_heredocs(cmd)[0].split("\n"):
+        if HELPER not in line:
+            continue
+        try:
+            if any(runs_helper(seg) for seg in segments(line)):
+                return True
+        except ValueError:  # unbalanced quotes: judge the line by a plain match instead
+            if re.search(r"(?:^|[\s;&|/\\\"'])gh-run-wait\.py\b", line):
+                return True
+    return False
 HEREDOC = re.compile(r"(?<!<)<<-?\s*(['\"]?)([A-Za-z_][\w.-]*)\1")
 
 
@@ -100,7 +168,7 @@ def main():
     if not isinstance(cmd, str):
         sys.exit(0)
     helper = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gh-run-wait.py").replace("\\", "/")
-    if RUN_WAIT.search(split_heredocs(cmd)[0]) and ti.get("run_in_background") is not True:
+    if invokes_helper(cmd) and ti.get("run_in_background") is not True:
         deny(
             "Blocked: gh-run-wait.py waits up to 5 minutes, so run it with run_in_background: true "
             "and END YOUR TURN; its exit wakes you. In the foreground it is sleep-then-check polling."
