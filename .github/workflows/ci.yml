@@ -149,7 +149,7 @@ jobs:
 
           # irm | iex and the scriptblock form run in the caller's session: they must leave no settings
           # or variables behind, including under Set-StrictMode -Version Latest.
-          $check = '; if ($ErrorActionPreference -ne "Continue") { exit 3 }; foreach ($v in "tmp","exe","argv","asFile","rawArgs","WithWorklog","NoWorklog","Plugins","NoPlugins","PluginHooks") { if (Test-Path "variable:$v") { Write-Host "left behind: $v"; exit 4 } }; exit $LASTEXITCODE'
+          $check = '; if ($ErrorActionPreference -ne "Continue") { exit 3 }; foreach ($v in "tmp","exe","argv","asFile","rawArgs","WithWorklog","NoWorklog","Plugins","NoPlugins","PluginHooks","cpu","tls","tls12","addTls12") { if (Test-Path "variable:$v") { Write-Host "left behind: $v"; exit 4 } }; exit $LASTEXITCODE'
           $runs = [ordered]@{
             "irm | iex" = 'irm "$env:STARTERKIT_BASE_URL/install.ps1" | iex'
             "scriptblock form" = '& ([scriptblock]::Create((irm "$env:STARTERKIT_BASE_URL/install.ps1"))) -NoWorklog -NoPlugins'
@@ -211,10 +211,55 @@ jobs:
           powershell -ExecutionPolicy Bypass -File .\install.ps1 -NoWorklog -NoPlugins
           if ($LASTEXITCODE -ne 0) { throw "file form exited $LASTEXITCODE" }
           Assert-Installed $env:CLAUDE_CONFIG_DIR $false
-          # ripwire has no Windows installer, so the installer exits 1 after the core install.
+          # ripwire has no Windows installer, so the installer exits 1 after the core install. The 1
+          # must be the installer's own (its message, and no PowerShell error), not a script crash.
+          # Run through cmd so the child's stderr comes back as text rather than error records.
           $env:CLAUDE_CONFIG_DIR = Join-Path $env:RUNNER_TEMP "ps51-claude4"
-          powershell -ExecutionPolicy Bypass -File .\install.ps1 -NoWorklog -Plugins ripwire
-          if ($LASTEXITCODE -ne 1) { throw "file form with -Plugins ripwire exited $LASTEXITCODE, want the installer's 1" }
+          $out = cmd /c "powershell -ExecutionPolicy Bypass -File .\install.ps1 -NoWorklog -Plugins ripwire 2>&1" | Out-String
+          $code = $LASTEXITCODE
+          Write-Host $out
+          if ($code -ne 1) { throw "file form with -Plugins ripwire exited $code, want the installer's 1" }
+          if ($out -notmatch "The starterkit is installed, but a plugin step failed") { throw "exit 1 without the installer's plugin-failure message" }
+          if ($out -match "FullyQualifiedErrorId|CategoryInfo|At line:") { throw "install.ps1 raised a PowerShell error" }
           Assert-Installed $env:CLAUDE_CONFIG_DIR $false
+
+          # A session that allows only TLS 1.0: install.ps1 adds TLS 1.2 for its downloads and puts the
+          # setting back afterwards.
+          $before = [Net.ServicePointManager]::SecurityProtocol
+          [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls
+          $env:CLAUDE_CONFIG_DIR = Join-Path $env:RUNNER_TEMP "ps51-claude5"
+          & ([scriptblock]::Create((irm "$env:STARTERKIT_BASE_URL/install.ps1"))) -NoWorklog -NoPlugins
+          $code = $LASTEXITCODE
+          $after = [Net.ServicePointManager]::SecurityProtocol
+          [Net.ServicePointManager]::SecurityProtocol = $before
+          if ($code -ne 0) { throw "TLS 1.0-only session: installer exited $code" }
+          if ($after -ne [Net.SecurityProtocolType]::Tls) { throw "SecurityProtocol not restored: $after" }
+          Assert-Installed $env:CLAUDE_CONFIG_DIR $false
+
+          # 32-bit Windows PowerShell on 64-bit Windows reports x86; install.ps1 must fetch the x64 installer.
+          $ps32 = Join-Path $env:SystemRoot "SysWOW64\WindowsPowerShell\v1.0\powershell.exe"
+          $arch = & $ps32 -NoProfile -Command '$env:PROCESSOR_ARCHITECTURE'
+          if ($arch -ne "x86") { throw "SysWOW64 PowerShell reports $arch, not x86" }
+          $env:CLAUDE_CONFIG_DIR = Join-Path $env:RUNNER_TEMP "ps51-claude6"
+          & $ps32 -ExecutionPolicy Bypass -File .\install.ps1 -NoWorklog -NoPlugins
+          if ($LASTEXITCODE -ne 0) { throw "32-bit PowerShell: file form exited $LASTEXITCODE" }
+          Assert-Installed $env:CLAUDE_CONFIG_DIR $false
+
+          # Under 5.1 too, irm | iex and the scriptblock form leave no settings or variables behind,
+          # including under Set-StrictMode -Version Latest.
+          $check = '; if ($ErrorActionPreference -ne "Continue") { exit 3 }; foreach ($v in "tmp","exe","argv","asFile","rawArgs","WithWorklog","NoWorklog","Plugins","NoPlugins","PluginHooks","cpu","tls","tls12","addTls12") { if (Test-Path "variable:$v") { Write-Host "left behind: $v"; exit 4 } }; exit $LASTEXITCODE'
+          $runs = [ordered]@{
+            "irm | iex" = 'irm "$env:STARTERKIT_BASE_URL/install.ps1" | iex'
+            "scriptblock form" = '& ([scriptblock]::Create((irm "$env:STARTERKIT_BASE_URL/install.ps1"))) -NoWorklog -NoPlugins'
+            "irm | iex under StrictMode" = 'Set-StrictMode -Version Latest; irm "$env:STARTERKIT_BASE_URL/install.ps1" | iex'
+          }
+          $n = 10
+          foreach ($run in $runs.GetEnumerator()) {
+            $env:CLAUDE_CONFIG_DIR = Join-Path $env:RUNNER_TEMP "ps51-claude$n"
+            $n++
+            powershell -NoProfile -Command ($run.Value + $check)
+            if ($LASTEXITCODE -ne 0) { throw "5.1 $($run.Key) failed or changed the caller's session (exit $LASTEXITCODE)" }
+            if (-not (Test-Path (Join-Path $env:CLAUDE_CONFIG_DIR "settings.json"))) { throw "5.1 $($run.Key) did not install" }
+          }
           $global:LASTEXITCODE = 0
           Write-Host "Windows PowerShell 5.1 installs work"
