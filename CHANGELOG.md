@@ -26,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `make_bundle.py` and the release zip: the installer binary carries its own payload.
 
-- `install.sh` / `install.ps1` seed `autoCompactEnabled: true` and `spinnerTipsEnabled: false` (each only if unset), so a session compacts automatically as its context fills (the compact instructions and hooks then carry the work across) and the spinner shows no tips. The `README.md` defaults list and the settings templates in `INSTRUCTIONS.md` / `INSTRUCTIONS-windows.md` list both.
+- The installer seeds `autoCompactEnabled: true` and `spinnerTipsEnabled: false` (each only if unset), so a session compacts automatically as its context fills (the compact instructions and hooks then carry the work across) and the spinner shows no tips. The `README.md` defaults list and the settings templates in `INSTRUCTIONS.md` / `INSTRUCTIONS-windows.md` list both.
 
 ### Fixed
 

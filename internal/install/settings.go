@@ -53,8 +53,8 @@ var Hooks = []hookEvent{
 }
 
 // Opinionated defaults that reinforce the guardrails (no artifacts, no AI co-author line,
-// deterministic worktrees, less UI noise, high effort, session transcripts kept instead of purged
-// after 30 days). Each is set only when the user has not chosen a value.
+// deterministic worktrees, less UI noise (no suggestions, no spinner tips), high effort, automatic
+// compaction on, session transcripts kept instead of purged after 30 days). Each is set only when the user has not chosen a value.
 func defaults() []struct {
 	key string
 	val any
@@ -71,8 +71,10 @@ func defaults() []struct {
 		{"worktree", worktree},
 		{"feedbackDrafts", "off"},
 		{"promptSuggestionEnabled", false},
+		{"spinnerTipsEnabled", false},
 		{"remoteControlAtStartup", false},
 		{"effortLevel", "high"},
+		{"autoCompactEnabled", true},
 		{"cleanupPeriodDays", 36500},
 	}
 }

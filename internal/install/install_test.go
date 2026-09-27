@@ -136,7 +136,7 @@ func TestSettingsFreshInstall(t *testing.T) {
 	cfg := settingsOf(t, o)
 	want := []string{"hooks", "attribution", "statusLine", "env", "includeCoAuthoredBy", "enableArtifact",
 		"askUserQuestionTimeout", "worktree", "feedbackDrafts", "promptSuggestionEnabled",
-		"remoteControlAtStartup", "effortLevel", "cleanupPeriodDays", "extraKnownMarketplaces"}
+		"spinnerTipsEnabled", "remoteControlAtStartup", "effortLevel", "autoCompactEnabled", "cleanupPeriodDays", "extraKnownMarketplaces"}
 	if got := strings.Join(cfg.Keys(), ","); got != strings.Join(want, ",") {
 		t.Fatalf("keys = %s", got)
 	}
