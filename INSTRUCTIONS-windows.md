@@ -108,6 +108,12 @@ don't replace what's there).
     ],
     "Stop": [
       { "hooks": [ { "type": "command", "command": "py -3 C:/Users/YOU/.claude/hooks/tie-break-guard.py" } ] }
+    ],
+    "PreCompact": [
+      { "hooks": [ { "type": "command", "command": "py -3 C:/Users/YOU/.claude/hooks/compact-snapshot.py" } ] }
+    ],
+    "SessionStart": [
+      { "matcher": "compact", "hooks": [ { "type": "command", "command": "py -3 C:/Users/YOU/.claude/hooks/compact-resume.py" } ] }
     ]
   }
 }

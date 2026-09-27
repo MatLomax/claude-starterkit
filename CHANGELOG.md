@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `CLAUDE.starterkit.md` "# Compact instructions" — the section Claude Code reads when it writes a compaction summary. Compaction clears old material out of context rather than starting a new session, so the summary is a complete handoff written by the agent that holds the full context, under six headings: task and scope (with the user's standing instructions and corrections), established facts (found, measured or decided, with exact identifiers and a short source), decisions, state of the work (in-flight jobs and each repo's exact git state), open items and blockers, and the next step with whether it is authorised. Established facts are trusted by the next agent as verified in the session; anything not verified is marked `(unverified)`. §5 "Verify before asserting" names a compaction summary as not a record that needs re-checking.
+- `hooks/compact-snapshot.py` (PreCompact) — copies the full session transcript to `~/.claude/compact-transcripts/<timestamp>-<session_id>.jsonl` before every compaction, keeping the newest 10 across sessions, so an exact detail the summary did not keep can still be searched. Never blocks a compaction.
+- `hooks/compact-resume.py` (SessionStart, matcher `compact`) — tells the post-compaction agent that the summary's established facts are trusted (no re-checking, no hedging, overriding the verify-a-record rule unless something observed now contradicts one), to carry on from the summary's next step, and where the transcript copy is, as a reference to grep rather than load. Wired by `install.sh` / `install.ps1`, listed in the `INSTRUCTIONS.md` / `INSTRUCTIONS-windows.md` settings templates and the `README.md` hook list.
+
 ## [0.5.4] - 2026-09-27
 
 ### Added

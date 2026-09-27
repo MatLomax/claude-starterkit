@@ -140,6 +140,12 @@ WANT = {
     "Stop": [
         (None, "tie-break-guard.py"),
     ],
+    "PreCompact": [
+        (None, "compact-snapshot.py"),
+    ],
+    "SessionStart": [
+        ("compact", "compact-resume.py"),
+    ],
 }
 
 def have(groups):

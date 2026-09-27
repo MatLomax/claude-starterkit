@@ -89,6 +89,12 @@ commands.
     ],
     "Stop": [
       { "hooks": [ { "type": "command", "command": "python3 $HOME/.claude/hooks/tie-break-guard.py" } ] }
+    ],
+    "PreCompact": [
+      { "hooks": [ { "type": "command", "command": "python3 $HOME/.claude/hooks/compact-snapshot.py" } ] }
+    ],
+    "SessionStart": [
+      { "matcher": "compact", "hooks": [ { "type": "command", "command": "python3 $HOME/.claude/hooks/compact-resume.py" } ] }
     ]
   }
 }
