@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.3] - 2026-09-27
+
 ### Changed
 
 - `hooks/sleep-guard.py` also denies disguised delays: `tail -f /dev/null` (with or without a `timeout` around it), `read -t N`, `ping` of the local host, `usleep` / `gsleep`, cmd's `timeout /t N`, PowerShell `Wait-Event -Timeout`, and Perl's `select(undef, undef, undef, N)` in an inline script. Real reads, tails of real files and pings of real hosts still pass. The deny message names the sanctioned waits (`gh run watch <id> --exit-status` in the background, or `Monitor`) and says not to route around the guard.
