@@ -104,13 +104,17 @@ does not undo or stop the rest of the install.
     `Start-Sleep`, inline `time.sleep`/`setTimeout`, and disguised delays such as
     `timeout N tail -f /dev/null`, `read -t N`, `ping localhost`): wait on background work via its
     completion notification, on a GitHub Actions run via `gh-run-wait.py`, and on other external
-    state via the tool's own blocking wait, not by polling.
+    state via the tool's own blocking wait, not by polling. It also sets `gh-run-wait.py`'s limits:
+    the helper runs only with `run_in_background: true`, as one direct call with literal arguments
+    (not in a loop, a wrapper or another shell), with `--timeout` at most 300 seconds and
+    `--interval` at least 10. Recognising a run is fail-closed: a command that names the helper
+    counts as running it unless it only reads, copies or prints the file (`git`, `grep`, `cat`, ...).
   - `gh-run-wait.py` (not a hook: a helper the sleep-guard names) — waits on a GitHub Actions run
     (`python3 ~/.claude/hooks/gh-run-wait.py <run URL>`, run in the background): checks it with
-    HTTP GETs every 15 seconds and exits when the run's status or conclusion changes or a job
-    finishes, printing each job's state. A bounded wait on one unfinished run: at most 5 minutes,
-    returns at once for a finished run, and the sleep-guard denies it outside the background. Exit 0
-    finished green, 1 finished otherwise, 3 changed and still running, 124 no change in time.
+    HTTP GETs every 15 seconds (`--interval`) and exits when the run's status or conclusion changes
+    or a job finishes, printing each job's state; a finished run returns at once, and `--timeout`
+    (default 300 seconds) bounds the whole wait. Exit 0 finished green, 1 finished otherwise,
+    3 changed and still running, 124 no change in time, 2 a usage or API error.
   - `spend-guard.py` (PreToolUse, all tools) — blocks every tool call once spend passes a limit, so
     the model stops and reports: `PROMPT_SPEND_LIMIT` (default `3M` API-price-weighted tokens) for
     the main conversation + subagents since your last message, and `WORKFLOW_SPEND_LIMIT` (default
