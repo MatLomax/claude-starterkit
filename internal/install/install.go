@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode"
 )
 
 // Options describes one install run.
@@ -171,13 +172,67 @@ func (o Options) hooksDir() string {
 	return d
 }
 
+// hookCommand is the settings.json command that runs the hook script, its path quoted when needed.
+func (o Options) hookCommand(script string) string {
+	return o.PyCmd + " " + shellArg(o.hooksDir()+"/"+script, o.Windows)
+}
+
+// legacyHookCommand is the command earlier installs wrote for the hook script: the path never
+// quoted. It differs from hookCommand only for a path that needs quoting.
+func (o Options) legacyHookCommand(script string) string {
+	return o.PyCmd + " " + o.hooksDir() + "/" + script
+}
+
 // StatuslineCommand is the statusLine command for this platform.
 func (o Options) StatuslineCommand() string {
 	if o.Windows {
 		p := strings.ReplaceAll(filepath.Join(o.ClaudeDir, "statusline-command.ps1"), `\`, "/")
 		return fmt.Sprintf(`%s -NoProfile -File "%s"`, o.PsExe, p)
 	}
-	return "bash " + path.Join(filepath.ToSlash(o.ClaudeDir), "statusline-command.sh")
+	return "bash " + shellArg(o.unixStatuslinePath(), false)
+}
+
+// legacyStatuslineCommand is the statusLine command earlier installs wrote: on Unix the path never
+// quoted. On Windows it was always quoted, so it equals StatuslineCommand.
+func (o Options) legacyStatuslineCommand() string {
+	if o.Windows {
+		return o.StatuslineCommand()
+	}
+	return "bash " + o.unixStatuslinePath()
+}
+
+func (o Options) unixStatuslinePath() string {
+	return path.Join(filepath.ToSlash(o.ClaudeDir), "statusline-command.sh")
+}
+
+// shellArg returns p as one word for the shell a command runs through: sh -c on Unix, Git Bash on
+// Windows. A path of only letters, digits and characters no shell treats specially is returned as
+// is, so commands for ordinary paths are exactly what earlier installs wrote. Any other path is
+// double-quoted, with the characters still special inside double quotes (" \ $ `) escaped by a
+// backslash. The double quotes also hold the path together under PowerShell, which Claude Code runs
+// hook commands through on Windows when Git Bash is missing; a $ or ` in the path is escaped for
+// Git Bash, which PowerShell reads differently.
+func shellArg(p string, windows bool) string {
+	plain := p != "" && strings.IndexFunc(p, func(r rune) bool {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) || strings.ContainsRune("/._-:+=@%", r) {
+			return false
+		}
+		// A comma separates array elements in a PowerShell argument; sh reads it literally.
+		return windows || r != ','
+	}) < 0
+	if plain {
+		return p
+	}
+	var b strings.Builder
+	b.WriteByte('"')
+	for _, r := range p {
+		if strings.ContainsRune("\"\\$`", r) {
+			b.WriteByte('\\')
+		}
+		b.WriteRune(r)
+	}
+	b.WriteByte('"')
+	return b.String()
 }
 
 // FindPython returns the first Python command that runs, trying the Windows launcher first

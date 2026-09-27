@@ -116,6 +116,14 @@ func Settings(o Options) error {
 		cfg.Set("attribution", attr)
 	}
 
+	// An earlier install's unquoted statusline command for a path with a space never ran: upgrade it.
+	if sv, ok := cfg.Get("statusLine"); ok {
+		if sl, ok := sv.(*ojson.Object); ok {
+			if c, _ := sl.Get("command"); c == o.legacyStatuslineCommand() {
+				sl.Set("command", o.StatuslineCommand())
+			}
+		}
+	}
 	if !cfg.Has("statusLine") {
 		sl := ojson.NewObject()
 		sl.Set("type", "command")
@@ -177,10 +185,12 @@ func mergeHooks(o Options, cfg *ojson.Object) error {
 			}
 			groups = g
 		}
-		present := commands(groups)
 		for _, h := range ev.hooks {
-			cmd := fmt.Sprintf("%s %s/%s", o.PyCmd, o.hooksDir(), h.script)
-			if present[cmd] {
+			cmd := o.hookCommand(h.script)
+			if legacy := o.legacyHookCommand(h.script); legacy != cmd {
+				groups = replaceCommand(groups, legacy, cmd)
+			}
+			if commands(groups)[cmd] {
 				continue
 			}
 			inner := ojson.NewObject()
@@ -199,6 +209,51 @@ func mergeHooks(o Options, cfg *ojson.Object) error {
 		hooks.Set(ev.event, groups)
 	}
 	return nil
+}
+
+// replaceCommand rewrites each hook entry whose command is old to run cmd instead, in place, so a
+// reinstall upgrades the unquoted command an earlier install wrote for a path with a space rather
+// than adding a second entry. When cmd is already registered, the old entries are dropped instead,
+// along with any group they leave empty.
+func replaceCommand(groups []any, old, cmd string) []any {
+	drop := commands(groups)[cmd]
+	out := groups[:0:0]
+	for _, g := range groups {
+		gobj, ok := g.(*ojson.Object)
+		if !ok {
+			out = append(out, g)
+			continue
+		}
+		hv, _ := gobj.Get("hooks")
+		list, ok := hv.([]any)
+		if !ok {
+			out = append(out, g)
+			continue
+		}
+		var kept []any
+		removed := false
+		for _, x := range list {
+			if xobj, ok := x.(*ojson.Object); ok {
+				if c, _ := xobj.Get("command"); c == old {
+					if drop {
+						removed = true
+						continue
+					}
+					xobj.Set("command", cmd)
+					drop = true
+				}
+			}
+			kept = append(kept, x)
+		}
+		if removed {
+			if len(kept) == 0 {
+				continue
+			}
+			gobj.Set("hooks", kept)
+		}
+		out = append(out, g)
+	}
+	return out
 }
 
 // commands collects every hook command already registered in an event's groups.

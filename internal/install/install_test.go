@@ -4,6 +4,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -283,4 +284,191 @@ func TestWindowsCommandsUseForwardSlashes(t *testing.T) {
 	if got := o.StatuslineCommand(); got != `pwsh -NoProfile -File "C:/Users/me/.claude/statusline-command.ps1"` {
 		t.Fatalf("statusline = %q", got)
 	}
+}
+
+func TestShellArgQuotesOnlyWhenNeeded(t *testing.T) {
+	for _, c := range []struct {
+		in      string
+		windows bool
+		want    string
+	}{
+		{"/home/me/.claude/hooks/git-guard.py", false, "/home/me/.claude/hooks/git-guard.py"},
+		{"/home/jose.müller+x@corp/.claude/hooks/a-b_c.py", false, "/home/jose.müller+x@corp/.claude/hooks/a-b_c.py"},
+		{"C:/Users/me/.claude/hooks/git-guard.py", true, "C:/Users/me/.claude/hooks/git-guard.py"},
+		{"/Users/John Smith/.claude/hooks/git-guard.py", false, `"/Users/John Smith/.claude/hooks/git-guard.py"`},
+		{"C:/Users/John Smith/.claude/hooks/git-guard.py", true, `"C:/Users/John Smith/.claude/hooks/git-guard.py"`},
+		{"/home/a,b/x.py", false, "/home/a,b/x.py"},
+		{"C:/Users/a,b/x.py", true, `"C:/Users/a,b/x.py"`},
+		{"/home/o'brien/x.py", false, `"/home/o'brien/x.py"`},
+		{"/home/a$b`c\"d\\e/x.py", false, `"/home/a\$b\` + "`" + `c\"d\\e/x.py"`},
+	} {
+		if got := shellArg(c.in, c.windows); got != c.want {
+			t.Errorf("shellArg(%q, windows=%v) = %s, want %s", c.in, c.windows, got, c.want)
+		}
+	}
+}
+
+func TestCommandsQuoteAPathWithASpace(t *testing.T) {
+	unix := Options{ClaudeDir: "/Users/John Smith/.claude", PyCmd: "python3"}
+	if got := unix.hookCommand("git-guard.py"); got != `python3 "/Users/John Smith/.claude/hooks/git-guard.py"` {
+		t.Errorf("Unix hook = %s", got)
+	}
+	if got := unix.StatuslineCommand(); got != `bash "/Users/John Smith/.claude/statusline-command.sh"` {
+		t.Errorf("Unix statusLine = %s", got)
+	}
+	win := Options{ClaudeDir: "C:/Users/John Smith/.claude", Windows: true, PyCmd: "py -3", PsExe: "pwsh"}
+	if got := win.hookCommand("git-guard.py"); got != `py -3 "C:/Users/John Smith/.claude/hooks/git-guard.py"` {
+		t.Errorf("Windows hook = %s", got)
+	}
+	if got := win.StatuslineCommand(); got != `pwsh -NoProfile -File "C:/Users/John Smith/.claude/statusline-command.ps1"` {
+		t.Errorf("Windows statusLine = %s", got)
+	}
+
+	// An ordinary path is written exactly as earlier installs wrote it.
+	plain := Options{ClaudeDir: "/home/me/.claude", PyCmd: "python3"}
+	if got := plain.hookCommand("git-guard.py"); got != "python3 /home/me/.claude/hooks/git-guard.py" {
+		t.Errorf("plain hook = %s", got)
+	}
+	if got := plain.StatuslineCommand(); got != "bash /home/me/.claude/statusline-command.sh" {
+		t.Errorf("plain statusLine = %s", got)
+	}
+}
+
+// hookEntries counts the hook entries in settings.json running cmd, across every event.
+func hookEntries(t *testing.T, o Options, cmd string) int {
+	t.Helper()
+	hv, _ := settingsOf(t, o).Get("hooks")
+	n := 0
+	for _, ev := range hv.(*ojson.Object).Keys() {
+		gv, _ := hv.(*ojson.Object).Get(ev)
+		for _, g := range gv.([]any) {
+			list, _ := g.(*ojson.Object).Get("hooks")
+			for _, x := range list.([]any) {
+				if c, _ := x.(*ojson.Object).Get("command"); c == cmd {
+					n++
+				}
+			}
+		}
+	}
+	return n
+}
+
+func TestSettingsReplacesLegacyUnquotedCommands(t *testing.T) {
+	for _, windows := range []bool{false, true} {
+		o := opts(t, false)
+		o.Windows, o.PyCmd, o.PsExe = windows, "python3", "pwsh"
+		if windows {
+			o.PyCmd = "py -3"
+		}
+		o.ClaudeDir = filepath.Join(o.ClaudeDir, "John Smith", ".claude")
+		if err := os.MkdirAll(o.ClaudeDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+
+		// A settings.json as an earlier install left it: every hook unquoted, in its own group, plus
+		// git-guard's unquoted entry sharing a group with a user hook, and nul-guard registered both
+		// unquoted and quoted.
+		cfg := ojson.NewObject()
+		hooks := ojson.NewObject()
+		entry := func(cmds ...string) *ojson.Object {
+			var list []any
+			for _, c := range cmds {
+				x := ojson.NewObject()
+				x.Set("type", "command")
+				x.Set("command", c)
+				list = append(list, x)
+			}
+			g := ojson.NewObject()
+			g.Set("hooks", list)
+			return g
+		}
+		for _, ev := range Hooks {
+			var groups []any
+			for _, h := range ev.hooks {
+				switch h.script {
+				case "git-guard.py":
+					groups = append(groups, entry("my-hook", o.legacyHookCommand(h.script)))
+				case "nul-guard.py":
+					groups = append(groups, entry(o.legacyHookCommand(h.script)), entry(o.hookCommand(h.script)))
+				default:
+					groups = append(groups, entry(o.legacyHookCommand(h.script)))
+				}
+			}
+			hooks.Set(ev.event, groups)
+		}
+		cfg.Set("hooks", hooks)
+		sl := ojson.NewObject()
+		sl.Set("type", "command")
+		sl.Set("command", o.legacyStatuslineCommand())
+		cfg.Set("statusLine", sl)
+		data, _ := ojson.Encode(cfg)
+		if err := os.WriteFile(filepath.Join(o.ClaudeDir, "settings.json"), data, 0o644); err != nil {
+			t.Fatal(err)
+		}
+
+		for run := 0; run < 2; run++ {
+			if err := Settings(o); err != nil {
+				t.Fatal(err)
+			}
+			for _, ev := range Hooks {
+				for _, h := range ev.hooks {
+					if o.legacyHookCommand(h.script) == o.hookCommand(h.script) {
+						t.Fatalf("windows=%v: %s needs no quoting, so the test proves nothing", windows, h.script)
+					}
+					if n := hookEntries(t, o, o.hookCommand(h.script)); n != 1 {
+						t.Errorf("windows=%v run %d: %d entries for %s, want 1", windows, run, n, o.hookCommand(h.script))
+					}
+					if n := hookEntries(t, o, o.legacyHookCommand(h.script)); n != 0 {
+						t.Errorf("windows=%v run %d: legacy %s left behind", windows, run, o.legacyHookCommand(h.script))
+					}
+				}
+			}
+			if n := hookEntries(t, o, "my-hook"); n != 1 {
+				t.Errorf("windows=%v: user hook sharing a group with a legacy entry lost", windows)
+			}
+			s := settingsOf(t, o)
+			slv, _ := s.Get("statusLine")
+			if c, _ := slv.(*ojson.Object).Get("command"); c != o.StatuslineCommand() {
+				t.Errorf("windows=%v: statusLine = %v, want %s", windows, c, o.StatuslineCommand())
+			}
+		}
+	}
+}
+
+// The commands run the way Claude Code runs a hook or statusline command on Unix: the whole
+// string through `sh -c`. With the interpreter swapped for cat, the output is the script itself
+// only if the shell resolved the quoted path to the installed file.
+func TestCommandsRunThroughShWithAnAwkwardPath(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("sh -c is the Unix execution path")
+	}
+	o := opts(t, false)
+	o.ClaudeDir = filepath.Join(o.ClaudeDir, "John Smith's $HOME `x` \"q\" \\b", ".claude")
+	if err := os.MkdirAll(o.ClaudeDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := Files(o); err != nil {
+		t.Fatal(err)
+	}
+	o.PyCmd = "cat"
+	run := func(cmd, file string) {
+		t.Helper()
+		out, err := exec.Command("sh", "-c", cmd).CombinedOutput()
+		if err != nil {
+			t.Fatalf("sh -c %s: %v\n%s", cmd, err, out)
+		}
+		if want := read(t, filepath.Join(o.ClaudeDir, file)); string(out) != want {
+			t.Fatalf("sh -c %s did not read %s", cmd, file)
+		}
+	}
+	for _, ev := range Hooks {
+		for _, h := range ev.hooks {
+			run(o.hookCommand(h.script), filepath.Join("hooks", h.script))
+		}
+	}
+	sl := o.StatuslineCommand()
+	if !strings.HasPrefix(sl, "bash ") {
+		t.Fatalf("statusLine = %s", sl)
+	}
+	run("cat "+strings.TrimPrefix(sl, "bash "), "statusline-command.sh")
 }
