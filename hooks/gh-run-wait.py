@@ -1,19 +1,14 @@
 #!/usr/bin/env python3
 """Wait for a GitHub Actions run to change, then print its state and exit.
 
-Not a hook: a helper the sleep-guard names as the sanctioned way to wait on CI. It checks the run
-with HTTP GETs (`gh api`: the run, then its jobs) every INTERVAL seconds and returns as soon as the
-run's state changes: the run's status or conclusion, or a job finishing. Run it in the background; its exit wakes you,
-and you run it again if the run is still going.
+Not a hook: a helper for waiting on CI. It checks the run with HTTP GETs (`gh api`: the run, then
+its jobs) every INTERVAL seconds and returns as soon as the run's state changes: the run's status or
+conclusion, or a job finishing. A run that has already finished returns at once. When nothing
+changes it stops at the timeout, which bounds the whole wait, API calls included.
 
     gh-run-wait.py RUN            RUN is a run URL (https://github.com/O/R/actions/runs/ID[/...])
     gh-run-wait.py RUN -R O/R     or a run ID with its repo
-    options: --interval N (seconds, 10-60, default 15), --timeout N (seconds, at most 300, default 300)
-
-It is a bounded wait on one Actions run: a finished run returns at once, the whole wait (API calls
-included) is capped at 5 minutes, and the interval has a 10-second floor. The sleep-guard denies it
-unless it runs in the background, and using it for anything but waiting on that run is a disguised
-delay.
+    options: --interval N (seconds between checks, default 15), --timeout N (seconds, default 300)
 
 Exit codes: 0 the run finished successfully, 1 the run finished with any other conclusion,
 3 the run changed and is still going, 124 nothing changed before the timeout, 2 a usage or API error.
@@ -25,8 +20,6 @@ import subprocess
 import sys
 import time
 
-MAX_TIMEOUT = 300
-MIN_INTERVAL, MAX_INTERVAL = 10, 60
 URL = re.compile(r"^https://github\.com/([\w.-]+/[\w.-]+)/actions/runs/(\d+)(?:[/?#].*)?$")
 REPO = re.compile(r"^[\w.-]+/[\w.-]+$")
 
@@ -37,7 +30,8 @@ def fail(msg):
 
 
 def api(path, timeout):
-    r = subprocess.run(["gh", "api", path], capture_output=True, text=True, timeout=timeout)
+    r = subprocess.run(["gh", "api", path], capture_output=True, encoding="utf-8",
+                       errors="replace", timeout=timeout)
     if r.returncode != 0:
         raise RuntimeError(r.stderr.strip() or f"gh api {path} exited {r.returncode}")
     return json.loads(r.stdout)
@@ -65,11 +59,14 @@ def report(s):
 
 
 def main():
-    p = argparse.ArgumentParser(description="Wait for a GitHub Actions run to change.")
+    for stream in (sys.stdout, sys.stderr):  # job names can hold characters a Windows codepage lacks
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
+    p = argparse.ArgumentParser(description="Wait for a GitHub Actions run to change.", allow_abbrev=False)
     p.add_argument("run", help="run URL, or run ID with -R")
     p.add_argument("-R", "--repo", help="OWNER/REPO, when RUN is an ID")
     p.add_argument("--interval", type=int, default=15)
-    p.add_argument("--timeout", type=int, default=MAX_TIMEOUT)
+    p.add_argument("--timeout", type=int, default=300)
     a = p.parse_args()
 
     m = URL.match(a.run)
@@ -79,10 +76,8 @@ def main():
         repo, run_id = a.repo, a.run
     else:
         fail("RUN must be an Actions run URL, or a run ID with -R OWNER/REPO")
-    if not MIN_INTERVAL <= a.interval <= MAX_INTERVAL:
-        fail(f"--interval must be {MIN_INTERVAL}-{MAX_INTERVAL} seconds")
-    if not 0 < a.timeout <= MAX_TIMEOUT:
-        fail(f"--timeout must be 1-{MAX_TIMEOUT} seconds")
+    if a.interval <= 0 or a.timeout <= 0:
+        fail("--interval and --timeout must be positive")
 
     deadline = time.monotonic() + a.timeout
     try:
