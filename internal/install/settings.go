@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 
 	"github.com/MatLomax/claude-starterkit/internal/ojson"
@@ -165,7 +166,7 @@ func Settings(o Options) error {
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(settings, out, 0o644); err != nil {
+	if err := os.WriteFile(settings, out, 0o666); err != nil {
 		return err
 	}
 	fmt.Fprintln(o.Out, "merged hooks + attribution + statusLine + env + config defaults into settings.json")
@@ -323,6 +324,12 @@ func backup(src, dst string) error {
 	}
 	if err := out.Close(); err != nil {
 		return err
+	}
+	// The backup has exactly the original's mode, which the umask would otherwise trim.
+	if runtime.GOOS != "windows" {
+		if err := os.Chmod(dst, st.Mode().Perm()); err != nil {
+			return err
+		}
 	}
 	return os.Chtimes(dst, st.ModTime(), st.ModTime())
 }

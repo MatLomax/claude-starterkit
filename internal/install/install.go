@@ -40,7 +40,7 @@ const (
 // imports what should be imported. The user's CLAUDE.md is never overwritten: only a missing
 // import line is appended.
 func Files(o Options) error {
-	if err := os.MkdirAll(filepath.Join(o.ClaudeDir, "hooks"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(o.ClaudeDir, "hooks"), 0o777); err != nil {
 		return err
 	}
 
@@ -56,7 +56,7 @@ func Files(o Options) error {
 		if f == worklogAddOn {
 			continue
 		}
-		if err := copyOut(o, f, f, 0o644); err != nil {
+		if err := copyOut(o, f, 0o644, false); err != nil {
 			return err
 		}
 		if f != ruleset {
@@ -74,7 +74,7 @@ func Files(o Options) error {
 	}
 
 	if o.Worklog {
-		if err := copyOut(o, worklogAddOn, worklogAddOn, 0o644); err != nil {
+		if err := copyOut(o, worklogAddOn, 0o644, false); err != nil {
 			return err
 		}
 		if err := ensureImport(o, claudeMD, "@./"+worklogAddOn, worklogAddOn, " (worklog add-on)"); err != nil {
@@ -90,19 +90,19 @@ func Files(o Options) error {
 	}
 	sort.Strings(hooks)
 	for _, h := range hooks {
-		if err := copyOut(o, h, h, 0o755); err != nil {
+		if err := copyOut(o, h, 0o755, true); err != nil {
 			return err
 		}
 	}
 	fmt.Fprintf(o.Out, "installed %d hook scripts\n", len(hooks))
 
 	if o.Windows {
-		if err := copyOut(o, "statusline-command.ps1", "statusline-command.ps1", 0o644); err != nil {
+		if err := copyOut(o, "statusline-command.ps1", 0o644, false); err != nil {
 			return err
 		}
 		fmt.Fprintln(o.Out, "installed statusline-command.ps1")
 	} else {
-		if err := copyOut(o, "statusline-command.sh", "statusline-command.sh", 0o755); err != nil {
+		if err := copyOut(o, "statusline-command.sh", 0o644, true); err != nil {
 			return err
 		}
 		fmt.Fprintln(o.Out, "installed statusline-command.sh")
@@ -110,28 +110,43 @@ func Files(o Options) error {
 
 	// Installed, never imported: the review rules cost tokens every session, so they apply only
 	// where a CLAUDE.md imports @~/.claude/review-rules.md.
-	if err := copyOut(o, reviewRules, reviewRules, 0o644); err != nil {
+	if err := copyOut(o, reviewRules, 0o644, false); err != nil {
 		return err
 	}
 	fmt.Fprintln(o.Out, "installed review-rules.md (opt-in: import @~/.claude/review-rules.md to enable)")
 	return nil
 }
 
-// copyOut writes the payload file src to dst (relative to the config dir) with the given mode.
-func copyOut(o Options, src, dst string, mode os.FileMode) error {
-	data, err := fs.ReadFile(o.Payload, src)
+// copyOut writes the payload file name to the same path under the config dir, with the modes a
+// plain cp gives: a new file gets srcMode (the file's mode in the repo) less the umask, and an
+// existing file keeps its mode. With exec set it then gets the execute bits chmod +x adds, which
+// the umask also limits. On Windows a new file gets exec's mode (0755 or 0644) and nothing is
+// chmodded.
+func copyOut(o Options, name string, srcMode os.FileMode, exec bool) error {
+	data, err := fs.ReadFile(o.Payload, name)
 	if err != nil {
 		return err
 	}
-	target := filepath.Join(o.ClaudeDir, filepath.FromSlash(dst))
-	if err := os.WriteFile(target, data, mode); err != nil {
+	target := filepath.Join(o.ClaudeDir, filepath.FromSlash(name))
+	if o.Windows {
+		mode := os.FileMode(0o644)
+		if exec {
+			mode = 0o755
+		}
+		return os.WriteFile(target, data, mode)
+	}
+	if err := os.WriteFile(target, data, srcMode); err != nil {
 		return err
 	}
-	// WriteFile keeps an existing file's mode; set it so a re-run repairs it.
-	if !o.Windows {
-		return os.Chmod(target, mode)
+	if !exec {
+		return nil
 	}
-	return nil
+	st, err := os.Stat(target)
+	if err != nil {
+		return err
+	}
+	keep := st.Mode() & (os.ModePerm | os.ModeSetuid | os.ModeSetgid | os.ModeSticky)
+	return os.Chmod(target, keep|os.FileMode(0o111&^umask()))
 }
 
 // ensureImport appends line to CLAUDE.md unless it is already there, separated from any existing
@@ -145,7 +160,7 @@ func ensureImport(o Options, claudeMD, line, name, note string) error {
 		fmt.Fprintf(o.Out, "CLAUDE.md already imports %s\n", name)
 		return nil
 	}
-	f, err := os.OpenFile(claudeMD, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	f, err := os.OpenFile(claudeMD, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o666)
 	if err != nil {
 		return err
 	}
