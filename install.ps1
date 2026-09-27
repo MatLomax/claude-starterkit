@@ -103,10 +103,14 @@ $env:STARTERKIT_VERSION = "X.Y.Z" installs that release instead of the latest.
     }
   }
 
-  switch ($env:PROCESSOR_ARCHITECTURE) {
+  # The machine's CPU: a 32-bit PowerShell on 64-bit Windows sees PROCESSOR_ARCHITECTURE=x86 and
+  # the real one in PROCESSOR_ARCHITEW6432.
+  $cpu = $env:PROCESSOR_ARCHITEW6432
+  if (-not $cpu) { $cpu = $env:PROCESSOR_ARCHITECTURE }
+  switch ($cpu) {
     "AMD64" { $arch = "x64" }
     "ARM64" { $arch = "arm64" }
-    default { throw "install.ps1: no prebuilt installer for Windows/$($env:PROCESSOR_ARCHITECTURE)" }
+    default { throw "install.ps1: no prebuilt installer for Windows/$cpu" }
   }
   $asset = "starterkit-install-windows-$arch.exe"
 
@@ -118,9 +122,17 @@ $env:STARTERKIT_VERSION = "X.Y.Z" installs that release instead of the latest.
   # STARTERKIT_BASE_URL points at another copy of the release assets (e.g. a test server).
   if ($env:STARTERKIT_BASE_URL) { $base = $env:STARTERKIT_BASE_URL }
 
+  # Windows PowerShell 5.1 on an older .NET Framework may not offer TLS 1.2, which GitHub requires.
+  # Add it for these downloads and put the session's setting back afterwards. (A setting of 0,
+  # SystemDefault, already lets the OS pick TLS 1.2 or later.)
+  $tls = [Net.ServicePointManager]::SecurityProtocol
+  $tls12 = [Net.SecurityProtocolType]::Tls12
+  $addTls12 = [int]$tls -ne 0 -and ([int]$tls -band [int]$tls12) -eq 0
+
   $tmp = Join-Path ([IO.Path]::GetTempPath()) ("starterkit-" + [Guid]::NewGuid().ToString("N"))
   New-Item -ItemType Directory -Path $tmp | Out-Null
   try {
+    if ($addTls12) { [Net.ServicePointManager]::SecurityProtocol = $tls -bor $tls12 }
     $exe = Join-Path $tmp $asset
     $ProgressPreference = "SilentlyContinue"
     Invoke-WebRequest -UseBasicParsing -Uri "$base/$asset" -OutFile $exe
@@ -132,6 +144,7 @@ $env:STARTERKIT_VERSION = "X.Y.Z" installs that release instead of the latest.
     & $exe @argv
     $status = $LASTEXITCODE
   } finally {
+    if ($addTls12) { [Net.ServicePointManager]::SecurityProtocol = $tls }
     Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
   }
   # Run as a file, pass the installer's exit code on. Under `irm | iex` this script runs inside the

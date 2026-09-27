@@ -164,3 +164,57 @@ jobs:
             if (-not (Test-Path (Join-Path $env:CLAUDE_CONFIG_DIR "settings.json"))) { throw "$($run.Key) did not install" }
           }
           Write-Host "no session leak"
+      - name: Install under Windows PowerShell 5.1 (one-liner and file form)
+        shell: powershell
+        env:
+          STARTERKIT_BASE_URL: http://127.0.0.1:8766
+        run: |
+          $ErrorActionPreference = "Stop"
+          if ($PSVersionTable.PSEdition -ne "Desktop" -or $PSVersionTable.PSVersion.Major -ne 5) { throw "not Windows PowerShell 5.1: $($PSVersionTable.PSVersion)" }
+          Start-Process python -ArgumentList "-m", "http.server", "8766" -WorkingDirectory (Join-Path $env:RUNNER_TEMP "assets") -WindowStyle Hidden
+          curl.exe -fsS --retry 30 --retry-connrefused --retry-delay 1 -o NUL "$env:STARTERKIT_BASE_URL/install.ps1"
+          if ($LASTEXITCODE -ne 0) { throw "asset server did not come up" }
+
+          # The checks the pwsh step makes on a default install.
+          function Assert-Installed([string]$dir, [bool]$worklog) {
+            $md = Get-Content (Join-Path $dir "CLAUDE.md")
+            if ($md -notcontains "@./CLAUDE.starterkit.md") { throw "CLAUDE.md import missing in $dir" }
+            $hasWorklog = Test-Path (Join-Path $dir "CLAUDE.starterkit-worklog.md")
+            if ($hasWorklog -ne $worklog) { throw "worklog add-on installed=$hasWorklog in $dir, want $worklog" }
+            $cfg = Get-Content (Join-Path $dir "settings.json") -Raw | ConvertFrom-Json
+            $cmds = @($cfg.hooks.PSObject.Properties.Value | ForEach-Object { $_ } | ForEach-Object { $_.hooks } | ForEach-Object { $_.command })
+            if ($cmds.Count -eq 0) { throw "no hooks wired in $dir" }
+            foreach ($c in $cmds) { if ($c -notmatch '^(py -3|python|python3) [A-Za-z]:/.+/hooks/[a-z-]+\.py$') { throw "bad hook command: $c" } }
+            if ($cfg.statusLine.command -notmatch '-NoProfile -File ".+/statusline-command\.ps1"$') { throw "bad statusLine: $($cfg.statusLine.command)" }
+            if (-not (Test-Path (Join-Path $dir "statusline-command.ps1"))) { throw "statusline script missing in $dir" }
+            Write-Host "$dir : $($cmds.Count) hooks wired"
+          }
+
+          # The documented one-liner.
+          $env:CLAUDE_CONFIG_DIR = Join-Path $env:RUNNER_TEMP "ps51-claude1"
+          irm "$env:STARTERKIT_BASE_URL/install.ps1" | iex
+          if ($LASTEXITCODE -ne 0) { throw "irm | iex: installer exited $LASTEXITCODE" }
+          Assert-Installed $env:CLAUDE_CONFIG_DIR $true
+
+          # Options through the scriptblock form.
+          $env:CLAUDE_CONFIG_DIR = Join-Path $env:RUNNER_TEMP "ps51-claude2"
+          & ([scriptblock]::Create((irm "$env:STARTERKIT_BASE_URL/install.ps1"))) -NoWorklog -NoPlugins
+          if ($LASTEXITCODE -ne 0) { throw "scriptblock form: installer exited $LASTEXITCODE" }
+          Assert-Installed $env:CLAUDE_CONFIG_DIR $false
+
+          # The file form: options applied, and the installer's exit code is the script's.
+          $dl = Join-Path $env:RUNNER_TEMP "ps51-download"
+          New-Item -ItemType Directory -Path $dl | Out-Null
+          Invoke-WebRequest -UseBasicParsing -Uri "$env:STARTERKIT_BASE_URL/install.ps1" -OutFile (Join-Path $dl "install.ps1")
+          Set-Location $dl
+          $env:CLAUDE_CONFIG_DIR = Join-Path $env:RUNNER_TEMP "ps51-claude3"
+          powershell -ExecutionPolicy Bypass -File .\install.ps1 -NoWorklog -NoPlugins
+          if ($LASTEXITCODE -ne 0) { throw "file form exited $LASTEXITCODE" }
+          Assert-Installed $env:CLAUDE_CONFIG_DIR $false
+          # ripwire has no Windows installer, so the installer exits 1 after the core install.
+          $env:CLAUDE_CONFIG_DIR = Join-Path $env:RUNNER_TEMP "ps51-claude4"
+          powershell -ExecutionPolicy Bypass -File .\install.ps1 -NoWorklog -Plugins ripwire
+          if ($LASTEXITCODE -ne 1) { throw "file form with -Plugins ripwire exited $LASTEXITCODE, want the installer's 1" }
+          Assert-Installed $env:CLAUDE_CONFIG_DIR $false
+          $global:LASTEXITCODE = 0
+          Write-Host "Windows PowerShell 5.1 installs work"
