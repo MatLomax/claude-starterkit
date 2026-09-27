@@ -54,8 +54,10 @@ mkdir -p "$CLAUDE_DIR/hooks"
 # 1. Ruleset — install as CLAUDE.starterkit.md and import it from your CLAUDE.md.
 #    Your CLAUDE.md is never overwritten; we only ensure ONE @import line is present.
 cp "$HERE/CLAUDE.starterkit.md" "$CLAUDE_DIR/CLAUDE.starterkit.md"
-cp "$HERE/CLAUDE.starterkit-compaction.md" "$CLAUDE_DIR/CLAUDE.starterkit-compaction.md"
-echo "installed CLAUDE.starterkit.md + CLAUDE.starterkit-compaction.md (imported by the ruleset)"
+for part in agents git compaction; do
+  cp "$HERE/CLAUDE.starterkit-$part.md" "$CLAUDE_DIR/CLAUDE.starterkit-$part.md"
+done
+echo "installed CLAUDE.starterkit.md + its imported parts (-agents, -git, -compaction)"
 IMPORT_LINE="@./CLAUDE.starterkit.md"
 CLAUDE_MD="$CLAUDE_DIR/CLAUDE.md"
 if [ -f "$CLAUDE_MD" ] && grep -qF "$IMPORT_LINE" "$CLAUDE_MD"; then

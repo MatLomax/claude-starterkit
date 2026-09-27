@@ -2,7 +2,8 @@
 
 These are instructions for working on the starterkit repo itself. They are not shipped:
 `make_bundle.py` bundles an explicit file list, and this file is not on it. The shipped ruleset is
-`CLAUDE.starterkit.md`.
+`CLAUDE.starterkit.md` with the parts it imports (`CLAUDE.starterkit-agents.md`, `-git.md`,
+`-compaction.md`), plus the optional `CLAUDE.starterkit-worklog.md` add-on.
 
 ## Releases
 
