@@ -103,7 +103,8 @@ does not undo or stop the rest of the install.
   project. It works from every surface that runs hooks (CLI, IDE extensions, the desktop app). It
   leaves alone a per-path directory that is already a link (one pointing elsewhere was made on
   purpose), or whose files clash with the project's by name, saying so; and it does nothing when
-  `autoMemoryDirectory` is set. The installer offers it via a prompt that **defaults to no**; opt
+  `autoMemoryDirectory` is set or the project is your home directory (`~/.claude/memory/` is Claude
+  Code's own). The installer offers it via a prompt that **defaults to no**; opt
   in with `--with-project-memory` / `-WithProjectMemory`, or `STARTERKIT_PROJECT_MEMORY=1`.
   The link relies on how Claude Code names the per-path directory and on when it loads memory,
   neither of which is documented: if a release changes either, memory falls back to the per-path

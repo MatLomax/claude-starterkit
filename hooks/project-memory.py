@@ -25,8 +25,10 @@ digit is replaced by "-", and a name longer than 200 characters is cut to 200 wi
 path appended.
 
 The hook changes nothing when auto memory is pointed elsewhere (autoMemoryDirectory,
-CLAUDE_CODE_REMOTE_MEMORY_DIR, CLAUDE_CODE_PROJECT_DIR_NAME, CLAUDE_COWORK_MEMORY_PATH_OVERRIDE) or
-when the default directory is already a link: a link that points somewhere else was made on purpose.
+CLAUDE_CODE_REMOTE_MEMORY_DIR, CLAUDE_CODE_PROJECT_DIR_NAME, CLAUDE_COWORK_MEMORY_PATH_OVERRIDE),
+when the default directory is already a link (a link that points somewhere else was made on
+purpose), or when the project is the home directory or inside the config dir: <home>/.claude is the
+config dir, and Claude Code keeps its own memory stores in its memory/ directory.
 It prints nothing unless it linked something or could not, and then only a JSON systemMessage for the
 user (SessionStart stdout would otherwise become session context).
 """
@@ -215,6 +217,11 @@ def locate(data):
     is_git = root is not None
     root = canonical_root(root) if is_git else start
     if os.path.dirname(root) == root or memory_dir_setting(root):
+        return None
+    # The home directory's .claude is the config dir, where Claude Code keeps its own memory stores
+    # (memory/personal/); a project there is not linked.
+    config = norm(config_dir())
+    if norm(os.path.join(root, ".claude")) == config or norm(root).startswith(config + os.sep):
         return None
     return root, is_git
 
