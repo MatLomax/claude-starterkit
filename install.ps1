@@ -10,6 +10,8 @@ With options (| iex cannot pass arguments, so use the scriptblock form):
 
   -NoWorklog      skip the worklog add-on (no prompt)
   -WithWorklog    install it without prompting
+  -WithProjectMemory  keep each git repo's auto memory in <repo>\.claude\memory (no prompt)
+  -NoProjectMemory    skip the project-memory add-on (no prompt; the default)
   -Plugins LIST   install these recommended plugins without prompting (comma-separated)
   -NoPlugins      install no recommended plugins (no prompt)
   -PluginHooks    also run each installed plugin's follow-up steps without prompting
@@ -50,9 +52,9 @@ $env:STARTERKIT_VERSION = "X.Y.Z" installs that release instead of the latest.
 
   # Options, matched like PowerShell parameters: case-insensitive, any unambiguous prefix, and
   # `-Name:value` (which reaches $args as "-Name:" followed by the value).
-  $switches = @{ WithWorklog = "--with-worklog"; NoWorklog = "--no-worklog"; NoPlugins = "--no-plugins"; PluginHooks = "--plugin-hooks" }
+  $switches = @{ WithWorklog = "--with-worklog"; NoWorklog = "--no-worklog"; WithProjectMemory = "--with-project-memory"; NoProjectMemory = "--no-project-memory"; NoPlugins = "--no-plugins"; PluginHooks = "--plugin-hooks" }
   $names = @($switches.Keys) + "Plugins"
-  $usage = "expected -WithWorklog, -NoWorklog, -Plugins LIST, -NoPlugins, -PluginHooks"
+  $usage = "expected -WithWorklog, -NoWorklog, -WithProjectMemory, -NoProjectMemory, -Plugins LIST, -NoPlugins, -PluginHooks"
   $argv = @()
   $i = 0
   while ($i -lt $rawArgs.Count) {

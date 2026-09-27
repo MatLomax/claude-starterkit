@@ -89,6 +89,22 @@ does not undo or stop the rest of the install.
   The installer offers it via a prompt that **defaults to yes** (press Enter to install). Opt out with
   `--no-worklog` / `-NoWorklog`, or `STARTERKIT_WORKLOG=0`; non-interactive runs install it by default.
   Skip it and the base ruleset is unaffected.
+- **Project memory** — an add-on that keeps each git repo's
+  [auto memory](https://code.claude.com/docs/en/memory#auto-memory) inside the repo, in
+  `<repo>/.claude/memory/` (excluded from git through `.git/info/exclude`), so every path the repo
+  is opened from (an sshfs mount and the machine it lives on, a second clone location) shares one
+  memory. It wires `project-memory.py` (SessionStart): Claude Code keeps auto memory under
+  `~/.claude/projects/<path-derived name>/memory/`, and `autoMemoryDirectory` accepts only an
+  absolute path, so the hook links that directory to the repo's (a symlink; a junction on Windows)
+  before the session loads memory. It works from every surface that runs hooks (CLI, IDE
+  extensions, the desktop app). It leaves alone a directory that already holds memories or links
+  elsewhere, and says so at session start: move those files into `<repo>/.claude/memory/` and
+  delete the directory, and the next session links it. It does nothing outside a git repo or when
+  `autoMemoryDirectory` is set. The installer offers it via a prompt that **defaults to no**; opt
+  in with `--with-project-memory` / `-WithProjectMemory`, or `STARTERKIT_PROJECT_MEMORY=1`.
+  The link relies on how Claude Code names the per-path directory and on when it loads memory,
+  neither of which is documented: if a release changes either, memory falls back to the per-path
+  directory and nothing is lost.
 - **13 hooks** → `~/.claude/hooks/`, wired into `settings.json`:
   - `correction-primer.py` (UserPromptSubmit) — nudges you when a message reads as a
     correction/question, not a start-imperative.
@@ -164,7 +180,10 @@ does not undo or stop the rest of the install.
 - To uninstall: delete `~/.claude/CLAUDE.starterkit.md` and its three imported parts, remove the `@./CLAUDE.starterkit.md`
   line from `~/.claude/CLAUDE.md`, restore the `settings.json.bak-…`, and delete the hook scripts. If
   you enabled the worklog add-on, also delete `~/.claude/CLAUDE.starterkit-worklog.md` and its
-  `@./CLAUDE.starterkit-worklog.md` line (re-running with `--no-worklog` does not remove it).
+  `@./CLAUDE.starterkit-worklog.md` line (re-running with `--no-worklog` does not remove it). If
+  you enabled project memory, also remove its `project-memory.py` SessionStart entry from
+  `settings.json` (re-running with `--no-project-memory` does not remove it); the links it made and
+  each repo's `.claude/memory/` stay, so move a repo's memories back before deleting its link.
 - **Upgrading from ≤ 0.3.1?** Those versions installed the ruleset *inline* as `~/.claude/CLAUDE.md`.
   This version installs it as `CLAUDE.starterkit.md` + an import, so after upgrading, delete the old
   inline ruleset from your `~/.claude/CLAUDE.md` (keep the `@./CLAUDE.starterkit.md` line) so it isn't

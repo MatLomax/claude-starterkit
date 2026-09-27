@@ -23,15 +23,15 @@ func TestUnavailablePluginIsReportedNotFatal(t *testing.T) {
 	plat := windowsPlatform()
 	opt := options{plugins: []string{"ripwire"}, pluginsSet: true}
 	var out bytes.Buffer
-	worklog, selected, err := decide(opt, plat, false, &out)
+	ch, err := decide(opt, plat, false, &out)
 	if err != nil {
 		t.Fatalf("decide refused an unavailable plugin: %v", err)
 	}
-	if !worklog || len(selected) != 1 {
-		t.Fatalf("decide = %v, %v", worklog, selected)
+	if !ch.worklog || len(ch.plugins) != 1 {
+		t.Fatalf("decide = %+v", ch)
 	}
 	var stdout, stderr bytes.Buffer
-	if failed := installPlugins(selected, opt, plat, false, &stdout, &stderr); !failed {
+	if failed := installPlugins(ch.plugins, opt, plat, false, &stdout, &stderr); !failed {
 		t.Fatal("an unavailable plugin was not reported as failed")
 	}
 	if !strings.Contains(stderr.String(), "no official installer") || !strings.Contains(stderr.String(), "/releases") {
@@ -45,7 +45,7 @@ func TestUnavailablePluginIsReportedNotFatal(t *testing.T) {
 // When the list is offered (no --plugins), an unavailable plugin is named with its manual link.
 func TestUnavailablePluginIsListedWithLink(t *testing.T) {
 	var out bytes.Buffer
-	if _, _, err := decide(options{}, windowsPlatform(), false, &out); err != nil {
+	if _, err := decide(options{}, windowsPlatform(), false, &out); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(out.String(), "ripwire has no official installer") || !strings.Contains(out.String(), "/releases") {
@@ -53,9 +53,30 @@ func TestUnavailablePluginIsListedWithLink(t *testing.T) {
 	}
 }
 
+// The project-memory add-on is off unless chosen, by flag or environment, even where worklog
+// defaults on.
+func TestProjectMemoryDefaultsOff(t *testing.T) {
+	var out bytes.Buffer
+	ch, err := decide(options{pluginsSet: true}, windowsPlatform(), false, &out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ch.projectMemory || !ch.worklog {
+		t.Fatalf("defaults = %+v, want worklog on and project memory off", ch)
+	}
+	ch, err = decide(options{pluginsSet: true, projectMemory: ptr(true)}, windowsPlatform(), false, &out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ch.projectMemory {
+		t.Fatal("--with-project-memory did not select the add-on")
+	}
+}
+
 func TestFlagErrors(t *testing.T) {
 	for _, args := range [][]string{
 		{"--with-worklog", "--no-worklog"},
+		{"--with-project-memory", "--no-project-memory"},
 		{"--plugins=ripwire", "--no-plugins"},
 		{"--plugins=nope"},
 		{"stray"},

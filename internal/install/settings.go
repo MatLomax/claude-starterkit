@@ -16,6 +16,7 @@ type hook struct {
 	matcher string         // "" for no matcher
 	script  string         // file name under hooks/
 	extra   map[string]any // extra fields on the hook entry (e.g. asyncRewake)
+	addOn   string         // "" for always; else the add-on that wires it (see Options.wants)
 }
 
 // hookEvent keeps the events in the order they are written into a fresh settings.json.
@@ -47,6 +48,7 @@ var Hooks = []hookEvent{
 	}},
 	{"SessionStart", []hook{
 		{matcher: "compact", script: "compact-resume.py"},
+		{script: "project-memory.py", addOn: projectMemoryAddOn},
 	}},
 	{"PostCompact", []hook{
 		{matcher: "manual", script: "compact-continue.py", extra: map[string]any{"asyncRewake": true}},
@@ -189,6 +191,9 @@ func mergeHooks(o Options, cfg *ojson.Object) error {
 			groups = g
 		}
 		for _, h := range ev.hooks {
+			if !o.wants(h.addOn) {
+				continue
+			}
 			cmd := o.hookCommand(h.script)
 			if legacy := o.legacyHookCommand(h.script); legacy != cmd {
 				groups = replaceCommand(groups, legacy, cmd)

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Project-memory add-on** (`hooks/project-memory.py`, SessionStart, no matcher) — keeps each git repo's auto memory inside the repo, in `<repo>/.claude/memory/`, so every path the repo is opened from (an sshfs mount and the machine it lives on, say) shares one memory. `autoMemoryDirectory` takes only an absolute path, so the hook links Claude Code's per-path directory, `<config dir>/projects/<name>/memory`, to the repo's (a symlink; on Windows a directory junction, which needs no administrator rights or Developer Mode), creates the target, and adds `/.claude/memory/` to the repo's `.git/info/exclude`. Claude Code resolves the memory directory after SessionStart hooks run, so the link serves the session that makes it, from every surface that runs hooks (CLI, IDE extensions, the desktop app). `<name>` is derived as Claude Code derives it: the nearest directory holding `.git` (a linked worktree maps to its main checkout, a submodule keeps its own root), non-alphanumerics replaced by `-`, and names over 200 characters cut with a hash of the path appended; checked against Claude Code 2.1.283 for a repo root, a subdirectory, a worktree, a submodule, a path over 200 characters and a path with spaces and non-ASCII characters. The hook does nothing outside a git repo or when `autoMemoryDirectory`, `CLAUDE_CODE_PROJECT_DIR_NAME` or `CLAUDE_COWORK_MEMORY_PATH_OVERRIDE` places memory elsewhere, and leaves a per-path directory that already holds memories or links elsewhere untouched, saying so at session start. Offered by an installer prompt that defaults to no (`--with-project-memory` / `--no-project-memory`, `-WithProjectMemory` / `-NoProjectMemory` in `install.ps1`, `STARTERKIT_PROJECT_MEMORY`; non-interactive runs skip it). CI installs it on Linux, macOS and Windows and runs the hook against a scratch repo.
+
 ## [0.6.0] - 2026-09-27
 
 ### Added

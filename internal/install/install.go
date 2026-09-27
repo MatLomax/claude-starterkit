@@ -19,17 +19,20 @@ import (
 
 // Options describes one install run.
 type Options struct {
-	ClaudeDir string    // the Claude config directory ($CLAUDE_CONFIG_DIR, else ~/.claude)
-	Payload   fs.FS     // the embedded starterkit files
-	Worklog   bool      // install and import the worklog add-on
-	Windows   bool      // lay down the Windows variants (statusline .ps1, Python launcher command)
-	PyCmd     string    // the command hooks run under ("python3" on Unix; detected on Windows)
-	PsExe     string    // Windows only: "pwsh" or "powershell", for the statusline command
-	Out       io.Writer // progress lines
-	Now       func() time.Time
+	ClaudeDir     string    // the Claude config directory ($CLAUDE_CONFIG_DIR, else ~/.claude)
+	Payload       fs.FS     // the embedded starterkit files
+	Worklog       bool      // install and import the worklog add-on
+	ProjectMemory bool      // wire the project-memory hook (a git repo's auto memory in <repo>/.claude/memory/)
+	Windows       bool      // lay down the Windows variants (statusline .ps1, Python launcher command)
+	PyCmd         string    // the command hooks run under ("python3" on Unix; detected on Windows)
+	PsExe         string    // Windows only: "pwsh" or "powershell", for the statusline command
+	Out           io.Writer // progress lines
+	Now           func() time.Time
 }
 
 const (
+	projectMemoryAddOn = "project-memory"
+
 	ruleset      = "CLAUDE.starterkit.md"
 	worklogAddOn = "CLAUDE.starterkit-worklog.md"
 	reviewRules  = "review-rules.md"
@@ -175,6 +178,17 @@ func ensureImport(o Options, claudeMD, line, name, note string) error {
 	}
 	fmt.Fprintf(o.Out, "appended '%s' to CLAUDE.md%s\n", line, note)
 	return nil
+}
+
+// wants reports whether the add-on named addOn is selected; "" names the always-installed core.
+func (o Options) wants(addOn string) bool {
+	switch addOn {
+	case "":
+		return true
+	case projectMemoryAddOn:
+		return o.ProjectMemory
+	}
+	return false
 }
 
 // hooksDir is the hooks directory as it appears inside hook commands: forward slashes on Windows,

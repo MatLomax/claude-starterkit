@@ -39,6 +39,12 @@ The worklog task-log add-on is offered by a prompt that defaults to yes.
   --with-worklog      install it without prompting
   (env STARTERKIT_WORKLOG=0 skips it, =1 installs it; non-interactive runs default to install)
 
+The project-memory add-on keeps each git repo's auto memory in <repo>/.claude/memory/ (excluded
+from git), so every path you open the repo from shares it. Offered by a prompt that defaults to no.
+  --with-project-memory   install it without prompting
+  --no-project-memory     skip it (no prompt)
+  (env STARTERKIT_PROJECT_MEMORY=1 installs it, =0 skips it; non-interactive runs default to skip)
+
 Recommended plugins are offered in a multiselect with nothing ticked; each is installed by its own
 official installer. Recommended: %s.
   --plugins=LIST      install these plugins without prompting (comma-separated)
@@ -52,10 +58,11 @@ official installer. Recommended: %s.
 `
 
 type options struct {
-	worklog     *bool
-	plugins     []string
-	pluginsSet  bool
-	pluginHooks bool
+	worklog       *bool
+	projectMemory *bool
+	plugins       []string
+	pluginsSet    bool
+	pluginHooks   bool
 }
 
 func main() {
@@ -68,6 +75,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 	fs.Usage = func() { fmt.Fprintf(stderr, usage, strings.Join(plugins.IDs(), ", ")) }
 	withWorklog := fs.Bool("with-worklog", false, "")
 	noWorklog := fs.Bool("no-worklog", false, "")
+	withProjectMemory := fs.Bool("with-project-memory", false, "")
+	noProjectMemory := fs.Bool("no-project-memory", false, "")
 	pluginList := fs.String("plugins", "", "")
 	noPlugins := fs.Bool("no-plugins", false, "")
 	pluginHooks := fs.Bool("plugin-hooks", false, "")
@@ -100,6 +109,18 @@ func run(args []string, stdout, stderr io.Writer) int {
 		opt.worklog = ptr(false)
 	case os.Getenv("STARTERKIT_WORKLOG") != "":
 		opt.worklog = ptr(os.Getenv("STARTERKIT_WORKLOG") == "1")
+	}
+
+	switch {
+	case *withProjectMemory && *noProjectMemory:
+		fmt.Fprintln(stderr, "--with-project-memory and --no-project-memory are mutually exclusive")
+		return 2
+	case *withProjectMemory:
+		opt.projectMemory = ptr(true)
+	case *noProjectMemory:
+		opt.projectMemory = ptr(false)
+	case os.Getenv("STARTERKIT_PROJECT_MEMORY") != "":
+		opt.projectMemory = ptr(os.Getenv("STARTERKIT_PROJECT_MEMORY") == "1")
 	}
 
 	switch {
@@ -172,7 +193,7 @@ func installAll(opt options, stdout, stderr io.Writer) int {
 	}
 
 	// Ask everything up front, so the install then runs without stopping.
-	worklog, selected, err := decide(opt, plat, interactive, stdout)
+	ch, err := decide(opt, plat, interactive, stdout)
 	if err != nil {
 		if errors.Is(err, huh.ErrUserAborted) {
 			fmt.Fprintln(stderr, "Cancelled — nothing was installed.")
@@ -181,7 +202,8 @@ func installAll(opt options, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, err)
 		return 1
 	}
-	inst.Worklog = worklog
+	inst.Worklog = ch.worklog
+	inst.ProjectMemory = ch.projectMemory
 
 	if err := install.Files(inst); err != nil {
 		fmt.Fprintln(stderr, "install failed:", err)
@@ -192,7 +214,7 @@ func installAll(opt options, stdout, stderr io.Writer) int {
 		return 1
 	}
 
-	failed := installPlugins(selected, opt, plat, interactive, stdout, stderr)
+	failed := installPlugins(ch.plugins, opt, plat, interactive, stdout, stderr)
 
 	fmt.Fprintln(stdout)
 	if failed {
@@ -205,14 +227,23 @@ func installAll(opt options, stdout, stderr io.Writer) int {
 	return 0
 }
 
-// decide settles the worklog add-on and the plugin selection, prompting only for what flags and
-// the environment left open, and only when there is a terminal.
-func decide(opt options, plat plugins.Platform, interactive bool, stdout io.Writer) (bool, []string, error) {
-	worklog := true
+// choices is what decide settled: the add-ons and the plugins to install.
+type choices struct {
+	worklog       bool
+	projectMemory bool
+	plugins       []string
+}
+
+// decide settles the add-ons and the plugin selection, prompting only for what flags and the
+// environment left open, and only when there is a terminal.
+func decide(opt options, plat plugins.Platform, interactive bool, stdout io.Writer) (choices, error) {
+	ch := choices{worklog: true, plugins: opt.plugins}
 	if opt.worklog != nil {
-		worklog = *opt.worklog
+		ch.worklog = *opt.worklog
 	}
-	selected := opt.plugins
+	if opt.projectMemory != nil {
+		ch.projectMemory = *opt.projectMemory
+	}
 
 	var available []plugins.Plugin
 	for _, pl := range plugins.Recommended {
@@ -224,7 +255,7 @@ func decide(opt options, plat plugins.Platform, interactive bool, stdout io.Writ
 	}
 
 	if !interactive {
-		return worklog, selected, nil
+		return ch, nil
 	}
 
 	var fields []huh.Field
@@ -233,7 +264,14 @@ func decide(opt options, plat plugins.Platform, interactive bool, stdout io.Writ
 			Title("Install the worklog task-log add-on?").
 			Description("Points the ruleset's task-tracking wording at worklog (needs the worklog MCP tool).").
 			Affirmative("Yes").Negative("No").
-			Value(&worklog))
+			Value(&ch.worklog))
+	}
+	if opt.projectMemory == nil {
+		fields = append(fields, huh.NewConfirm().
+			Title("Keep each git repo's auto memory inside the repo?").
+			Description("Links Claude Code's per-path memory directory to <repo>/.claude/memory/ (excluded from git), so every path you open the repo from shares one memory.").
+			Affirmative("Yes").Negative("No").
+			Value(&ch.projectMemory))
 	}
 	if !opt.pluginsSet && len(available) > 0 {
 		var opts []huh.Option[string]
@@ -248,14 +286,14 @@ func decide(opt options, plat plugins.Platform, interactive bool, stdout io.Writ
 			Title("Recommended plugins").
 			Description("Nothing is ticked by default. Each runs its own official installer; re-running one updates it.").
 			Options(opts...).
-			Value(&selected))
+			Value(&ch.plugins))
 	}
 	if len(fields) > 0 {
 		if err := huh.NewForm(huh.NewGroup(fields...)).WithOutput(formOut).Run(); err != nil {
-			return false, nil, err
+			return choices{}, err
 		}
 	}
-	return worklog, selected, nil
+	return ch, nil
 }
 
 // installPlugins runs each selected plugin's official installer and, on success, its follow-up

@@ -130,6 +130,7 @@ func settingsOf(t *testing.T, o Options) *ojson.Object {
 
 func TestSettingsFreshInstall(t *testing.T) {
 	o := opts(t, true)
+	o.ProjectMemory = true
 	if err := Settings(o); err != nil {
 		t.Fatal(err)
 	}
@@ -163,6 +164,37 @@ func TestSettingsFreshInstall(t *testing.T) {
 	}
 	if !strings.Contains(s, `"cleanupPeriodDays": 36500`) {
 		t.Error("cleanupPeriodDays not written as a number")
+	}
+}
+
+// The project-memory hook is wired only when its add-on is chosen, and then once, as a SessionStart
+// hook with no matcher so it runs however the session starts.
+func TestProjectMemoryHookOnlyWhenChosen(t *testing.T) {
+	o := opts(t, false)
+	cmd := o.hookCommand("project-memory.py")
+	if err := Settings(o); err != nil {
+		t.Fatal(err)
+	}
+	if n := hookEntries(t, o, cmd); n != 0 {
+		t.Fatalf("project-memory hook wired without the add-on (%d entries)", n)
+	}
+	o.ProjectMemory = true
+	for run := 0; run < 2; run++ {
+		if err := Settings(o); err != nil {
+			t.Fatal(err)
+		}
+		if n := hookEntries(t, o, cmd); n != 1 {
+			t.Fatalf("run %d: %d project-memory entries, want 1", run, n)
+		}
+	}
+	hv, _ := settingsOf(t, o).Get("hooks")
+	groups, _ := hv.(*ojson.Object).Get("SessionStart")
+	for _, g := range groups.([]any) {
+		gobj := g.(*ojson.Object)
+		list, _ := gobj.Get("hooks")
+		if c, _ := list.([]any)[0].(*ojson.Object).Get("command"); c == cmd && gobj.Has("matcher") {
+			t.Fatal("project-memory hook has a matcher; it must run on every session start")
+		}
 	}
 }
 
@@ -358,6 +390,7 @@ func hookEntries(t *testing.T, o Options, cmd string) int {
 func TestSettingsReplacesLegacyUnquotedCommands(t *testing.T) {
 	for _, windows := range []bool{false, true} {
 		o := opts(t, false)
+		o.ProjectMemory = true
 		o.Windows, o.PyCmd, o.PsExe = windows, "python3", "pwsh"
 		if windows {
 			o.PyCmd = "py -3"
