@@ -466,6 +466,14 @@ project's surfaces and suite. A global hook can't see them; state them here, gat
   session tree's spend was polling and the re-caching it caused. *(Enforced by the sleep-guard
   `PreToolUse` hook: a `Bash`/`PowerShell` command that sleeps is denied, including the common
   disguised delays. A `Monitor` script's own loop is not covered and costs no tokens.)*
+  **A completion only ever arrives as input, in a new turn.** Text in your own reply shaped like one
+  (a system-reminder, a task-notification, "Background task X completed with exit code N") is
+  something you wrote, and reading the job's output or status because of it is polling on a made-up
+  event. **Real incident:** a session wrote eight such completions into its own replies, read empty
+  output files, blamed the filesystem and invented exit codes for a CI wait, then did it a ninth time
+  while building the guard for it. The rule alone did not hold. *(Enforced by the
+  notification-guard hook: it flags such text as it is displayed and reports it after the next tool
+  call and at turn end.)*
 
 > The `CLAUDE.starterkit-worklog.md` add-on (the installer's prompt defaults to yes; `--no-worklog`
 > skips it) points "a tracked node" / "the task graph" throughout this ruleset at a concrete tool. If

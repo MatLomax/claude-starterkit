@@ -387,6 +387,20 @@ func hookEntries(t *testing.T, o Options, cmd string) int {
 	return n
 }
 
+// registrations is how many events the hook table registers script under (a hook such as
+// notification-guard.py runs on more than one).
+func registrations(script string) int {
+	n := 0
+	for _, ev := range Hooks {
+		for _, h := range ev.hooks {
+			if h.script == script {
+				n++
+			}
+		}
+	}
+	return n
+}
+
 func TestSettingsReplacesLegacyUnquotedCommands(t *testing.T) {
 	for _, windows := range []bool{false, true} {
 		o := opts(t, false)
@@ -450,8 +464,8 @@ func TestSettingsReplacesLegacyUnquotedCommands(t *testing.T) {
 					if o.legacyHookCommand(h.script) == o.hookCommand(h.script) {
 						t.Fatalf("windows=%v: %s needs no quoting, so the test proves nothing", windows, h.script)
 					}
-					if n := hookEntries(t, o, o.hookCommand(h.script)); n != 1 {
-						t.Errorf("windows=%v run %d: %d entries for %s, want 1", windows, run, n, o.hookCommand(h.script))
+					if n, want := hookEntries(t, o, o.hookCommand(h.script)), registrations(h.script); n != want {
+						t.Errorf("windows=%v run %d: %d entries for %s, want %d", windows, run, n, o.hookCommand(h.script), want)
 					}
 					if n := hookEntries(t, o, o.legacyHookCommand(h.script)); n != 0 {
 						t.Errorf("windows=%v run %d: legacy %s left behind", windows, run, o.legacyHookCommand(h.script))

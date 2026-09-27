@@ -89,7 +89,8 @@ commands.
     "UserPromptSubmit": [
       { "hooks": [ { "type": "command", "command": "python3 $HOME/.claude/hooks/icon-reminder.py" } ] },
       { "hooks": [ { "type": "command", "command": "python3 $HOME/.claude/hooks/correction-primer.py" } ] },
-      { "hooks": [ { "type": "command", "command": "python3 $HOME/.claude/hooks/commit-style-primer.py" } ] }
+      { "hooks": [ { "type": "command", "command": "python3 $HOME/.claude/hooks/commit-style-primer.py" } ] },
+      { "hooks": [ { "type": "command", "command": "python3 $HOME/.claude/hooks/notification-guard.py" } ] }
     ],
     "PreToolUse": [
       { "matcher": "AskUserQuestion", "hooks": [ { "type": "command", "command": "python3 $HOME/.claude/hooks/deny-askuserquestion.py" } ] },
@@ -97,10 +98,15 @@ commands.
       { "matcher": "Bash",            "hooks": [ { "type": "command", "command": "python3 $HOME/.claude/hooks/git-guard.py" } ] },
       { "matcher": "Bash|PowerShell", "hooks": [ { "type": "command", "command": "python3 $HOME/.claude/hooks/sleep-guard.py" } ] },
       {                               "hooks": [ { "type": "command", "command": "python3 $HOME/.claude/hooks/spend-guard.py" } ] },
-      { "matcher": "Write|Edit",      "hooks": [ { "type": "command", "command": "python3 $HOME/.claude/hooks/nul-guard.py" } ] }
+      { "matcher": "Write|Edit",      "hooks": [ { "type": "command", "command": "python3 $HOME/.claude/hooks/nul-guard.py" } ] },
+      {                               "hooks": [ { "type": "command", "command": "python3 $HOME/.claude/hooks/notification-guard.py" } ] }
+    ],
+    "PostToolUse": [
+      { "hooks": [ { "type": "command", "command": "python3 $HOME/.claude/hooks/notification-guard.py" } ] }
     ],
     "Stop": [
-      { "hooks": [ { "type": "command", "command": "python3 $HOME/.claude/hooks/tie-break-guard.py" } ] }
+      { "hooks": [ { "type": "command", "command": "python3 $HOME/.claude/hooks/tie-break-guard.py" } ] },
+      { "hooks": [ { "type": "command", "command": "python3 $HOME/.claude/hooks/notification-guard.py" } ] }
     ],
     "PreCompact": [
       { "hooks": [ { "type": "command", "command": "python3 $HOME/.claude/hooks/compact-snapshot.py" } ] }
@@ -110,6 +116,9 @@ commands.
     ],
     "PostCompact": [
       { "matcher": "manual", "hooks": [ { "type": "command", "command": "python3 $HOME/.claude/hooks/compact-continue.py", "asyncRewake": true } ] }
+    ],
+    "MessageDisplay": [
+      { "hooks": [ { "type": "command", "command": "python3 $HOME/.claude/hooks/notification-guard.py" } ] }
     ]
   }
 }

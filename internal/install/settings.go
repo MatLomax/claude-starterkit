@@ -31,6 +31,7 @@ var Hooks = []hookEvent{
 		{script: "icon-reminder.py"},
 		{script: "correction-primer.py"},
 		{script: "commit-style-primer.py"},
+		{script: "notification-guard.py"},
 	}},
 	{"PreToolUse", []hook{
 		{matcher: "AskUserQuestion", script: "deny-askuserquestion.py"},
@@ -39,9 +40,14 @@ var Hooks = []hookEvent{
 		{matcher: "Bash|PowerShell", script: "sleep-guard.py"},
 		{script: "spend-guard.py"},
 		{matcher: "Write|Edit", script: "nul-guard.py"},
+		{script: "notification-guard.py"},
+	}},
+	{"PostToolUse", []hook{
+		{script: "notification-guard.py"},
 	}},
 	{"Stop", []hook{
 		{script: "tie-break-guard.py"},
+		{script: "notification-guard.py"},
 	}},
 	{"PreCompact", []hook{
 		{script: "compact-snapshot.py"},
@@ -52,6 +58,9 @@ var Hooks = []hookEvent{
 	}},
 	{"PostCompact", []hook{
 		{matcher: "manual", script: "compact-continue.py", extra: map[string]any{"asyncRewake": true}},
+	}},
+	{"MessageDisplay", []hook{
+		{script: "notification-guard.py"},
 	}},
 }
 

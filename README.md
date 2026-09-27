@@ -105,7 +105,7 @@ does not undo or stop the rest of the install.
   The link relies on how Claude Code names the per-path directory and on when it loads memory,
   neither of which is documented: if a release changes either, memory falls back to the per-path
   directory and nothing is lost.
-- **13 hooks** → `~/.claude/hooks/`, wired into `settings.json`:
+- **14 hooks** → `~/.claude/hooks/`, wired into `settings.json`:
   - `correction-primer.py` (UserPromptSubmit) — nudges you when a message reads as a
     correction/question, not a start-imperative.
   - `commit-style-primer.py` (UserPromptSubmit) — injects a repo's `.git/COMMIT_STYLE.md` when you
@@ -138,6 +138,14 @@ does not undo or stop the rest of the install.
   - `tie-break-guard.py` (Stop) — blocks turn-end if the reply leaves record-keeping undone:
     asks permission to log a gap, claims a record with no write behind it, or promises one and
     ends the turn.
+  - `notification-guard.py` (MessageDisplay, PreToolUse, PostToolUse, Stop, UserPromptSubmit) — a
+    background job's completion only ever arrives as input in a new turn. When the assistant's own
+    text holds something shaped like one (a system-reminder or task-notification tag, "Background
+    task X completed with exit code N"), the hook flags it as the text streams and marks the line on
+    screen, then tells the assistant after its next tool call (or denies the call, when the flag is
+    already set) and blocks a reply that ends the turn on it. The one tool call right after the text
+    still runs in an interactive session: Claude Code runs PreToolUse before any hook sees the text.
+    Quoted and code text is ignored.
   - `compact-snapshot.py` (PreCompact) — copies the full session transcript to
     `~/.claude/compact-transcripts/` before every compaction (newest 10 kept), as a reference for
     exact details the summary did not keep. Never blocks a compaction.

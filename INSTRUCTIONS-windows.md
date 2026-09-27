@@ -113,7 +113,8 @@ don't replace what's there).
     "UserPromptSubmit": [
       { "hooks": [ { "type": "command", "command": "py -3 C:/Users/YOU/.claude/hooks/icon-reminder.py" } ] },
       { "hooks": [ { "type": "command", "command": "py -3 C:/Users/YOU/.claude/hooks/correction-primer.py" } ] },
-      { "hooks": [ { "type": "command", "command": "py -3 C:/Users/YOU/.claude/hooks/commit-style-primer.py" } ] }
+      { "hooks": [ { "type": "command", "command": "py -3 C:/Users/YOU/.claude/hooks/commit-style-primer.py" } ] },
+      { "hooks": [ { "type": "command", "command": "py -3 C:/Users/YOU/.claude/hooks/notification-guard.py" } ] }
     ],
     "PreToolUse": [
       { "matcher": "AskUserQuestion", "hooks": [ { "type": "command", "command": "py -3 C:/Users/YOU/.claude/hooks/deny-askuserquestion.py" } ] },
@@ -121,10 +122,15 @@ don't replace what's there).
       { "matcher": "Bash",            "hooks": [ { "type": "command", "command": "py -3 C:/Users/YOU/.claude/hooks/git-guard.py" } ] },
       { "matcher": "Bash|PowerShell", "hooks": [ { "type": "command", "command": "py -3 C:/Users/YOU/.claude/hooks/sleep-guard.py" } ] },
       {                               "hooks": [ { "type": "command", "command": "py -3 C:/Users/YOU/.claude/hooks/spend-guard.py" } ] },
-      { "matcher": "Write|Edit",      "hooks": [ { "type": "command", "command": "py -3 C:/Users/YOU/.claude/hooks/nul-guard.py" } ] }
+      { "matcher": "Write|Edit",      "hooks": [ { "type": "command", "command": "py -3 C:/Users/YOU/.claude/hooks/nul-guard.py" } ] },
+      {                               "hooks": [ { "type": "command", "command": "py -3 C:/Users/YOU/.claude/hooks/notification-guard.py" } ] }
+    ],
+    "PostToolUse": [
+      { "hooks": [ { "type": "command", "command": "py -3 C:/Users/YOU/.claude/hooks/notification-guard.py" } ] }
     ],
     "Stop": [
-      { "hooks": [ { "type": "command", "command": "py -3 C:/Users/YOU/.claude/hooks/tie-break-guard.py" } ] }
+      { "hooks": [ { "type": "command", "command": "py -3 C:/Users/YOU/.claude/hooks/tie-break-guard.py" } ] },
+      { "hooks": [ { "type": "command", "command": "py -3 C:/Users/YOU/.claude/hooks/notification-guard.py" } ] }
     ],
     "PreCompact": [
       { "hooks": [ { "type": "command", "command": "py -3 C:/Users/YOU/.claude/hooks/compact-snapshot.py" } ] }
@@ -134,6 +140,9 @@ don't replace what's there).
     ],
     "PostCompact": [
       { "matcher": "manual", "hooks": [ { "type": "command", "command": "py -3 C:/Users/YOU/.claude/hooks/compact-continue.py", "asyncRewake": true } ] }
+    ],
+    "MessageDisplay": [
+      { "hooks": [ { "type": "command", "command": "py -3 C:/Users/YOU/.claude/hooks/notification-guard.py" } ] }
     ]
   }
 }
