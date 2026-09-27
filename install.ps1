@@ -62,7 +62,8 @@ New-Item -ItemType Directory -Force -Path (Join-Path $ClaudeDir "hooks") | Out-N
 # 1. Ruleset — install as CLAUDE.starterkit.md and import it from your CLAUDE.md.
 #    Your CLAUDE.md is never overwritten; we only ensure ONE @import line is present.
 Copy-Item (Join-Path $Here "CLAUDE.starterkit.md") (Join-Path $ClaudeDir "CLAUDE.starterkit.md") -Force
-Write-Host "installed CLAUDE.starterkit.md"
+Copy-Item (Join-Path $Here "CLAUDE.starterkit-compaction.md") (Join-Path $ClaudeDir "CLAUDE.starterkit-compaction.md") -Force
+Write-Host "installed CLAUDE.starterkit.md + CLAUDE.starterkit-compaction.md (imported by the ruleset)"
 $importLine = "@./CLAUDE.starterkit.md"
 $claudeMd = Join-Path $ClaudeDir "CLAUDE.md"
 if ((Test-Path $claudeMd) -and (Select-String -Path $claudeMd -SimpleMatch -Pattern $importLine -Quiet)) {

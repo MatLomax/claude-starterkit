@@ -30,7 +30,7 @@ Let `CFG` be your Claude config dir: `~/.claude` (or `$CLAUDE_CONFIG_DIR` if you
 
 ```bash
 mkdir -p "$CFG/hooks"
-cp CLAUDE.starterkit.md "$CFG/CLAUDE.starterkit.md"
+cp CLAUDE.starterkit.md CLAUDE.starterkit-compaction.md "$CFG/"
 grep -qF '@./CLAUDE.starterkit.md' "$CFG/CLAUDE.md" 2>/dev/null \
   || printf '\n%s\n' '@./CLAUDE.starterkit.md' >> "$CFG/CLAUDE.md"
 ```
@@ -120,7 +120,7 @@ commands.
 
 ## Uninstall
 
-Delete `$CFG/CLAUDE.starterkit.md` and remove the `@./CLAUDE.starterkit.md` line from
+Delete `$CFG/CLAUDE.starterkit.md` and `$CFG/CLAUDE.starterkit-compaction.md`, remove the `@./CLAUDE.starterkit.md` line from
 `$CFG/CLAUDE.md`, restore the `settings.json.bak` you backed up, and delete the hook scripts from
 `$CFG/hooks/`. If you enabled the worklog add-on, also delete `$CFG/CLAUDE.starterkit-worklog.md` and
 its `@./CLAUDE.starterkit-worklog.md` line.

@@ -32,6 +32,9 @@ else `~/.claude`.
 - **`CLAUDE.starterkit.md`** → `~/.claude/CLAUDE.starterkit.md` — the user-level ruleset, pulled into
   context by an idempotent `@./CLAUDE.starterkit.md` line appended to your `~/.claude/CLAUDE.md`
   (your own `CLAUDE.md` is left intact — the starterkit layers on top of it).
+- **`CLAUDE.starterkit-compaction.md`** → `~/.claude/CLAUDE.starterkit-compaction.md` — the
+  "# Compact instructions" Claude Code follows when it writes a compaction summary, imported by the
+  ruleset itself (`@./CLAUDE.starterkit-compaction.md`), so your `CLAUDE.md` needs no extra line.
 - **`CLAUDE.starterkit-worklog.md`** — an add-on that points the ruleset's generic "tracked node" /
   "task graph" wording at [`worklog`](https://github.com/MatLomax/worklog), a cross-session task log.
   The installer offers it via a prompt that **defaults to yes** (press Enter to install). Opt out with
@@ -97,7 +100,7 @@ else `~/.claude`.
   holds under those modes) and context injection, never a permission prompt.
 - Heuristics (git flag matching, correction/question detection) are pragmatic — tune the scripts in
   `~/.claude/hooks/` to taste.
-- To uninstall: delete `~/.claude/CLAUDE.starterkit.md` and remove the `@./CLAUDE.starterkit.md`
+- To uninstall: delete `~/.claude/CLAUDE.starterkit.md` and `~/.claude/CLAUDE.starterkit-compaction.md`, remove the `@./CLAUDE.starterkit.md`
   line from `~/.claude/CLAUDE.md`, restore the `settings.json.bak-…`, and delete the hook scripts. If
   you enabled the worklog add-on, also delete `~/.claude/CLAUDE.starterkit-worklog.md` and its
   `@./CLAUDE.starterkit-worklog.md` line (re-running with `--no-worklog` does not remove it).

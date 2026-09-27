@@ -24,7 +24,7 @@ BUNDLE = "claude-starterkit"
 # The installable payload — exactly what the installers lay down. Dev/release
 # tooling (this script), VCS metadata, dist/ and .gitignore are excluded.
 TOP_FILES = [
-    "CLAUDE.starterkit.md", "CLAUDE.starterkit-worklog.md",
+    "CLAUDE.starterkit.md", "CLAUDE.starterkit-compaction.md", "CLAUDE.starterkit-worklog.md",
     "CHANGELOG.md", "README.md", "LICENSE",
     "INSTRUCTIONS.md", "INSTRUCTIONS-windows.md",
     "install.sh", "install.ps1",

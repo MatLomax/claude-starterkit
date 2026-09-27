@@ -46,6 +46,7 @@ one). In PowerShell:
 $CFG = if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR } else { Join-Path $env:USERPROFILE ".claude" }
 New-Item -ItemType Directory -Force -Path (Join-Path $CFG "hooks") | Out-Null
 Copy-Item .\CLAUDE.starterkit.md (Join-Path $CFG "CLAUDE.starterkit.md")
+Copy-Item .\CLAUDE.starterkit-compaction.md (Join-Path $CFG "CLAUDE.starterkit-compaction.md")
 $claudeMd = Join-Path $CFG "CLAUDE.md"
 if (-not ((Test-Path $claudeMd) -and (Select-String -Path $claudeMd -SimpleMatch -Pattern '@./CLAUDE.starterkit.md' -Quiet))) {
   Add-Content -Path $claudeMd -Value "`n@./CLAUDE.starterkit.md"
@@ -152,7 +153,7 @@ don't replace what's there).
 
 ## Uninstall
 
-Delete `%USERPROFILE%\.claude\CLAUDE.starterkit.md` and remove the `@./CLAUDE.starterkit.md` line
+Delete `%USERPROFILE%\.claude\CLAUDE.starterkit.md` and `CLAUDE.starterkit-compaction.md`, remove the `@./CLAUDE.starterkit.md` line
 from `%USERPROFILE%\.claude\CLAUDE.md`, restore the `settings.json.bak-…` you backed up, and delete
 the hook scripts from `%USERPROFILE%\.claude\hooks\`. If you enabled the worklog add-on, also delete
 `%USERPROFILE%\.claude\CLAUDE.starterkit-worklog.md` and its `@./CLAUDE.starterkit-worklog.md` line.
