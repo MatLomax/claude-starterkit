@@ -1,0 +1,271 @@
+package install
+
+import (
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"sort"
+
+	"github.com/MatLomax/claude-starterkit/internal/ojson"
+)
+
+// hook is one hook the starterkit wires into settings.json.
+type hook struct {
+	matcher string         // "" for no matcher
+	script  string         // file name under hooks/
+	extra   map[string]any // extra fields on the hook entry (e.g. asyncRewake)
+}
+
+// hookEvent keeps the events in the order they are written into a fresh settings.json.
+type hookEvent struct {
+	event string
+	hooks []hook
+}
+
+// Hooks is every hook the starterkit installs, by event.
+var Hooks = []hookEvent{
+	{"UserPromptSubmit", []hook{
+		{script: "icon-reminder.py"},
+		{script: "correction-primer.py"},
+		{script: "commit-style-primer.py"},
+	}},
+	{"PreToolUse", []hook{
+		{matcher: "AskUserQuestion", script: "deny-askuserquestion.py"},
+		{matcher: "Agent", script: "agent-guard.py"},
+		{matcher: "Bash", script: "git-guard.py"},
+		{matcher: "Bash|PowerShell", script: "sleep-guard.py"},
+		{script: "spend-guard.py"},
+		{matcher: "Write|Edit", script: "nul-guard.py"},
+	}},
+	{"Stop", []hook{
+		{script: "tie-break-guard.py"},
+	}},
+	{"PreCompact", []hook{
+		{script: "compact-snapshot.py"},
+	}},
+	{"SessionStart", []hook{
+		{matcher: "compact", script: "compact-resume.py"},
+	}},
+	{"PostCompact", []hook{
+		{matcher: "manual", script: "compact-continue.py", extra: map[string]any{"asyncRewake": true}},
+	}},
+}
+
+// Opinionated defaults that reinforce the guardrails (no artifacts, no AI co-author line,
+// deterministic worktrees, less UI noise, high effort, session transcripts kept instead of purged
+// after 30 days). Each is set only when the user has not chosen a value.
+func defaults() []struct {
+	key string
+	val any
+} {
+	worktree := ojson.NewObject()
+	worktree.Set("baseRef", "fresh")
+	return []struct {
+		key string
+		val any
+	}{
+		{"includeCoAuthoredBy", false},
+		{"enableArtifact", false},
+		{"askUserQuestionTimeout", "never"},
+		{"worktree", worktree},
+		{"feedbackDrafts", "off"},
+		{"promptSuggestionEnabled", false},
+		{"remoteControlAtStartup", false},
+		{"effortLevel", "high"},
+		{"cleanupPeriodDays", 36500},
+	}
+}
+
+// formerOpusPin is the model the kit once pinned the `opus` alias to. A value equal to it is
+// removed so the alias resolves to the latest Opus; any other value is the user's own and is kept.
+const formerOpusPin = "claude-opus-4-8"
+
+// Settings merges the starterkit's hooks, attribution suppression, statusline, env and config
+// defaults into settings.json. An existing file is backed up first (settings.json.bak-<stamp>), and
+// nothing the user has set is overwritten or reordered.
+func Settings(o Options) error {
+	settings := filepath.Join(o.ClaudeDir, "settings.json")
+	cfg := ojson.NewObject()
+	if data, err := os.ReadFile(settings); err == nil {
+		v, err := ojson.Decode(data)
+		if err != nil {
+			return fmt.Errorf("%s is not valid JSON: %w", settings, err)
+		}
+		obj, ok := v.(*ojson.Object)
+		if !ok {
+			return fmt.Errorf("%s is not a JSON object", settings)
+		}
+		cfg = obj
+		if err := backup(settings, settings+".bak-"+o.Now().Format("20060102-150405")); err != nil {
+			return err
+		}
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+
+	if err := mergeHooks(o, cfg); err != nil {
+		return err
+	}
+
+	if !cfg.Has("attribution") {
+		attr := ojson.NewObject()
+		attr.Set("commit", "")
+		attr.Set("pr", "")
+		attr.Set("sessionUrl", false)
+		cfg.Set("attribution", attr)
+	}
+
+	if !cfg.Has("statusLine") {
+		sl := ojson.NewObject()
+		sl.Set("type", "command")
+		sl.Set("command", o.StatuslineCommand())
+		cfg.Set("statusLine", sl)
+	}
+
+	env, err := childObject(cfg, "env")
+	if err != nil {
+		return err
+	}
+	env.SetDefault("DO_NOT_TRACK", "1")
+	if v, ok := env.Get("ANTHROPIC_DEFAULT_OPUS_MODEL"); ok && v == formerOpusPin {
+		env.Delete("ANTHROPIC_DEFAULT_OPUS_MODEL")
+	}
+
+	for _, d := range defaults() {
+		cfg.SetDefault(d.key, d.val)
+	}
+
+	// With the worklog add-on, register the matlomax plugin marketplace globally. No plugin is
+	// enabled globally; enablement stays per project.
+	if o.Worklog {
+		mkt, err := childObject(cfg, "extraKnownMarketplaces")
+		if err != nil {
+			return err
+		}
+		src := ojson.NewObject()
+		src.Set("source", "github")
+		src.Set("repo", "MatLomax/claude-plugins")
+		entry := ojson.NewObject()
+		entry.Set("source", src)
+		mkt.SetDefault("matlomax", entry)
+	}
+
+	out, err := ojson.Encode(cfg)
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(settings, out, 0o644); err != nil {
+		return err
+	}
+	fmt.Fprintln(o.Out, "merged hooks + attribution + statusLine + env + config defaults into settings.json")
+	return nil
+}
+
+// mergeHooks appends each starterkit hook whose command is not already registered under its event.
+func mergeHooks(o Options, cfg *ojson.Object) error {
+	hooks, err := childObject(cfg, "hooks")
+	if err != nil {
+		return err
+	}
+	for _, ev := range Hooks {
+		var groups []any
+		if v, ok := hooks.Get(ev.event); ok {
+			g, ok := v.([]any)
+			if !ok {
+				return fmt.Errorf("settings.json hooks.%s is not a list", ev.event)
+			}
+			groups = g
+		}
+		present := commands(groups)
+		for _, h := range ev.hooks {
+			cmd := fmt.Sprintf("%s %s/%s", o.PyCmd, o.hooksDir(), h.script)
+			if present[cmd] {
+				continue
+			}
+			inner := ojson.NewObject()
+			inner.Set("type", "command")
+			inner.Set("command", cmd)
+			for _, k := range sortedKeys(h.extra) {
+				inner.Set(k, h.extra[k])
+			}
+			entry := ojson.NewObject()
+			entry.Set("hooks", []any{inner})
+			if h.matcher != "" {
+				entry.Set("matcher", h.matcher)
+			}
+			groups = append(groups, entry)
+		}
+		hooks.Set(ev.event, groups)
+	}
+	return nil
+}
+
+// commands collects every hook command already registered in an event's groups.
+func commands(groups []any) map[string]bool {
+	seen := map[string]bool{}
+	for _, g := range groups {
+		gobj, ok := g.(*ojson.Object)
+		if !ok {
+			continue
+		}
+		hv, _ := gobj.Get("hooks")
+		list, _ := hv.([]any)
+		for _, x := range list {
+			xobj, ok := x.(*ojson.Object)
+			if !ok {
+				continue
+			}
+			if c, ok := xobj.Get("command"); ok {
+				if s, ok := c.(string); ok && s != "" {
+					seen[s] = true
+				}
+			}
+		}
+	}
+	return seen
+}
+
+// childObject returns cfg[key], creating an empty object there when it is absent.
+func childObject(cfg *ojson.Object, key string) (*ojson.Object, error) {
+	v := cfg.SetDefault(key, ojson.NewObject())
+	obj, ok := v.(*ojson.Object)
+	if !ok {
+		return nil, fmt.Errorf("settings.json %q is not an object", key)
+	}
+	return obj, nil
+}
+
+func sortedKeys(m map[string]any) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+// backup copies src to dst, keeping its mode and modification time.
+func backup(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	st, err := in.Stat()
+	if err != nil {
+		return err
+	}
+	out, err := os.OpenFile(dst, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, st.Mode().Perm())
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(out, in); err != nil {
+		out.Close()
+		return err
+	}
+	if err := out.Close(); err != nil {
+		return err
+	}
+	return os.Chtimes(dst, st.ModTime(), st.ModTime())
+}

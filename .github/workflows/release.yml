@@ -2,8 +2,9 @@ name: release
 
 # Changelog-driven release. On a push to main it reads the first versioned
 # heading in CHANGELOG.md; if that version has no tag yet it tags the commit,
-# builds the bundle and publishes the GitHub release, with the version's
-# changelog section as the notes and the bundle zip attached. Cutting a release
+# builds the installer for every platform and publishes the GitHub release, with
+# the version's changelog section as the notes and the installer binaries, their
+# .sha256 files and the install.sh / install.ps1 bootstraps attached. Cutting a release
 # is therefore just: move the [Unreleased] entries under a new "## [X.Y.Z]"
 # heading and push to main. Tagging and publishing happen in one job, so the
 # default GITHUB_TOKEN is enough (a tag it pushes never needs to trigger another
@@ -67,13 +68,25 @@ jobs:
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
-      - name: Build the bundle
+      # Tags from before the Go installer (0.5.x and earlier) have no go.mod; a dispatch
+      # re-publish of one builds that tag's own zip bundle with its make_bundle.py.
+      - name: Set up Go
+        if: steps.ver.outputs.version != '' && hashFiles('go.mod') != ''
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Test and build the release assets
         if: steps.ver.outputs.version != ''
         run: |
           set -euo pipefail
-          python3 make_bundle.py
-          zip="dist/claude-starterkit-${{ steps.ver.outputs.version }}.zip"
-          test -f "$zip" || { echo "make_bundle.py did not produce $zip" >&2; exit 1; }
+          if [ -f go.mod ]; then
+            go vet ./...
+            go test ./...
+            scripts/build-release.sh "${{ steps.ver.outputs.version }}" dist
+          else
+            python3 make_bundle.py
+          fi
 
       - name: Extract the changelog section
         if: steps.ver.outputs.version != ''
@@ -99,6 +112,6 @@ jobs:
           tag_name: v${{ steps.ver.outputs.version }}
           name: v${{ steps.ver.outputs.version }}
           body_path: release_notes.md
-          files: dist/claude-starterkit-${{ steps.ver.outputs.version }}.zip
+          files: dist/*
           # A new version is the latest release; a dispatch backfill of an older tag never is.
           make_latest: ${{ github.event_name == 'push' }}

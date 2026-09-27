@@ -1,237 +1,75 @@
 <#
-Installs a shared Claude Code user-level ruleset + guardrail hooks (Windows / PowerShell).
+Installs the Claude Code starterkit on Windows: downloads the installer binary for this CPU from the
+latest GitHub release, checks its SHA-256, and runs it. Safe to re-run.
 
-  - installs %USERPROFILE%\.claude\CLAUDE.starterkit.md and ensure-appends an idempotent
-    `@./CLAUDE.starterkit.md` import to %USERPROFILE%\.claude\CLAUDE.md (never overwrites it)
-  - installs %USERPROFILE%\.claude\hooks\*.py    (the guardrail + primer hooks)
-  - merges hooks + AI-attribution suppression + env (DO_NOT_TRACK) +
-    opinionated config defaults into settings.json, idempotently and
-    WITHOUT clobbering your existing settings.
-  - with the worklog add-on selected, registers the `matlomax` plugin
-    marketplace globally (no plugin is enabled globally — that stays per-project)
+  irm https://github.com/MatLomax/claude-starterkit/releases/latest/download/install.ps1 | iex
 
-Safe to re-run. Restart Claude Code (or start a fresh session) afterwards for the hooks to load.
-Honours $env:CLAUDE_CONFIG_DIR if set, else %USERPROFILE%\.claude.
+With options (| iex cannot pass arguments, so use the scriptblock form):
 
-Usage (from this folder):
-  powershell -ExecutionPolicy Bypass -File .\install.ps1 [-NoWorklog | -WithWorklog]
+  & ([scriptblock]::Create((irm https://github.com/MatLomax/claude-starterkit/releases/latest/download/install.ps1))) -NoWorklog
 
-  The worklog task-log add-on is offered by a prompt that defaults to yes (Enter installs it).
-  -NoWorklog     skip the worklog add-on (no prompt)
-  -WithWorklog   install it without prompting
-  (env STARTERKIT_WORKLOG=0 skips it, =1 installs it; non-interactive runs default to install)
+  -NoWorklog      skip the worklog add-on (no prompt)
+  -WithWorklog    install it without prompting
+  -Plugins LIST   install these recommended plugins without prompting (comma-separated)
+  -NoPlugins      install no recommended plugins (no prompt)
+  -PluginHooks    also run each installed plugin's follow-up steps without prompting
+
+$env:STARTERKIT_VERSION = "X.Y.Z" installs that release instead of the latest.
 #>
-param([switch]$WithWorklog, [switch]$NoWorklog)
-$ErrorActionPreference = "Stop"
+param(
+  [switch]$WithWorklog,
+  [switch]$NoWorklog,
+  [string]$Plugins,
+  [switch]$NoPlugins,
+  [switch]$PluginHooks
+)
+# Under `irm | iex` this script runs in the caller's own scope. The body runs in a child scope so
+# none of its settings or variables are left behind in the user's session.
+& {
+  param([bool]$asFile, [bool]$pluginsGiven)
+  $ErrorActionPreference = "Stop"
+  $Repo = "MatLomax/claude-starterkit"
 
-# The worklog task-log add-on: -WithWorklog / -NoWorklog, else the STARTERKIT_WORKLOG env var, else
-# an interactive prompt that DEFAULTS TO YES (press Enter to install it). Non-interactive runs
-# (redirected stdin) default to yes too; use -NoWorklog or STARTERKIT_WORKLOG=0 to skip.
-if ($WithWorklog) { $WantWorklog = $true }
-elseif ($NoWorklog) { $WantWorklog = $false }
-elseif ($env:STARTERKIT_WORKLOG) { $WantWorklog = ($env:STARTERKIT_WORKLOG -eq "1") }
-elseif ([Environment]::UserInteractive -and -not [Console]::IsInputRedirected) {
-  # Interactive only: skip the prompt when stdin is redirected (piped / CI), matching bash's `[ -t 0 ]`.
-  $ans = Read-Host "Install the worklog task-log add-on? (needs the worklog MCP tool) [Y/n]"
-  $WantWorklog = ($ans -notmatch '^[Nn]')
-} else { $WantWorklog = $true }
-
-$Here = Split-Path -Parent $MyInvocation.MyCommand.Path
-$ClaudeDir = if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR } else { Join-Path $env:USERPROFILE ".claude" }
-$Stamp = Get-Date -Format "yyyyMMdd-HHmmss"
-
-# 0. Find a working Python — hook commands need one baked in. Windows rarely has `python3`.
-$PyCmd = $null
-foreach ($cand in @("py -3", "python", "python3")) {
-  $parts = $cand.Split(" ")
-  $exe = $parts[0]
-  $rest = if ($parts.Length -gt 1) { $parts[1..($parts.Length-1)] } else { @() }
-  try {
-    & $exe @rest --version *> $null
-    if ($LASTEXITCODE -eq 0) { $PyCmd = $cand; break }
-  } catch { }
-}
-if (-not $PyCmd) {
-  Write-Error "No Python found on PATH (tried 'py -3', 'python', 'python3'). The hooks are Python scripts and need it. Install Python 3 from python.org or the Microsoft Store, then re-run."
-  exit 1
-}
-Write-Host "using Python command: $PyCmd"
-
-New-Item -ItemType Directory -Force -Path (Join-Path $ClaudeDir "hooks") | Out-Null
-
-# 1. Ruleset — install as CLAUDE.starterkit.md and import it from your CLAUDE.md.
-#    Your CLAUDE.md is never overwritten; we only ensure ONE @import line is present.
-Copy-Item (Join-Path $Here "CLAUDE.starterkit.md") (Join-Path $ClaudeDir "CLAUDE.starterkit.md") -Force
-foreach ($part in "agents", "git", "compaction") {
-  Copy-Item (Join-Path $Here "CLAUDE.starterkit-$part.md") (Join-Path $ClaudeDir "CLAUDE.starterkit-$part.md") -Force
-}
-Write-Host "installed CLAUDE.starterkit.md + its imported parts (-agents, -git, -compaction)"
-$importLine = "@./CLAUDE.starterkit.md"
-$claudeMd = Join-Path $ClaudeDir "CLAUDE.md"
-if ((Test-Path $claudeMd) -and (Select-String -Path $claudeMd -SimpleMatch -Pattern $importLine -Quiet)) {
-  Write-Host "CLAUDE.md already imports CLAUDE.starterkit.md"
-} else {
-  if ((Test-Path $claudeMd) -and ((Get-Item $claudeMd).Length -gt 0)) { Add-Content -Path $claudeMd -Value "" }
-  Add-Content -Path $claudeMd -Value $importLine
-  Write-Host "appended '$importLine' to CLAUDE.md"
-}
-
-# 1b. Optional worklog add-on — installed and imported only if requested.
-$wlFile = "CLAUDE.starterkit-worklog.md"
-$wlImport = "@./$wlFile"
-if ($WantWorklog) {
-  Copy-Item (Join-Path $Here $wlFile) (Join-Path $ClaudeDir $wlFile) -Force
-  if ((Test-Path $claudeMd) -and (Select-String -Path $claudeMd -SimpleMatch -Pattern $wlImport -Quiet)) {
-    Write-Host "CLAUDE.md already imports $wlFile"
-  } else {
-    if ((Test-Path $claudeMd) -and ((Get-Item $claudeMd).Length -gt 0)) { Add-Content -Path $claudeMd -Value "" }
-    Add-Content -Path $claudeMd -Value $wlImport
-    Write-Host "appended '$wlImport' to CLAUDE.md (worklog add-on)"
+  switch ($env:PROCESSOR_ARCHITECTURE) {
+    "AMD64" { $arch = "x64" }
+    "ARM64" { $arch = "arm64" }
+    default { throw "install.ps1: no prebuilt installer for Windows/$($env:PROCESSOR_ARCHITECTURE)" }
   }
-} else {
-  Write-Host "skipping worklog add-on (-NoWorklog / STARTERKIT_WORKLOG=0)"
-}
+  $asset = "starterkit-install-windows-$arch.exe"
 
-# 2. hooks
-$hookSrc = Join-Path $Here "hooks\*.py"
-Copy-Item $hookSrc (Join-Path $ClaudeDir "hooks") -Force
-$hookCount = (Get-ChildItem (Join-Path $ClaudeDir "hooks\*.py")).Count
-Write-Host "installed $hookCount hook scripts"
+  if ($env:STARTERKIT_VERSION) {
+    $base = "https://github.com/$Repo/releases/download/v$($env:STARTERKIT_VERSION.TrimStart('v'))"
+  } else {
+    $base = "https://github.com/$Repo/releases/latest/download"
+  }
+  # STARTERKIT_BASE_URL points at another copy of the release assets (e.g. a test server).
+  if ($env:STARTERKIT_BASE_URL) { $base = $env:STARTERKIT_BASE_URL }
 
-# 2b. statusline script (native PowerShell port — no bash/jq needed on Windows).
-Copy-Item (Join-Path $Here "statusline-command.ps1") (Join-Path $ClaudeDir "statusline-command.ps1") -Force
-Write-Host "installed statusline-command.ps1"
+  $tmp = Join-Path ([IO.Path]::GetTempPath()) ("starterkit-" + [Guid]::NewGuid().ToString("N"))
+  New-Item -ItemType Directory -Path $tmp | Out-Null
+  try {
+    $exe = Join-Path $tmp $asset
+    $ProgressPreference = "SilentlyContinue"
+    Invoke-WebRequest -UseBasicParsing -Uri "$base/$asset" -OutFile $exe
+    Invoke-WebRequest -UseBasicParsing -Uri "$base/$asset.sha256" -OutFile "$exe.sha256"
+    $want = ((Get-Content "$exe.sha256" -Raw).Trim() -split '\s+')[0].ToLower()
+    $got = (Get-FileHash -Algorithm SHA256 -Path $exe).Hash.ToLower()
+    if (-not $want -or $want -ne $got) { throw "install.ps1: checksum mismatch for $asset (expected $want, got $got)" }
 
-# 2c. Opt-in review rules. Installed, never imported: they apply only where a CLAUDE.md
-#     imports @~/.claude/review-rules.md (they cost tokens every session, so off by default).
-Copy-Item (Join-Path $Here "review-rules.md") (Join-Path $ClaudeDir "review-rules.md") -Force
-Write-Host "installed review-rules.md (opt-in: import @~/.claude/review-rules.md to enable)"
-$slScriptPath = (Join-Path $ClaudeDir "statusline-command.ps1").Replace("\", "/")
-$psExe = if (Get-Command pwsh -ErrorAction SilentlyContinue) { "pwsh" } else { "powershell" }
-$SlCmd = "$psExe -NoProfile -File `"$slScriptPath`""
-Write-Host "statusline command: $SlCmd"
+    $argv = @()
+    if ($WithWorklog) { $argv += "--with-worklog" }
+    if ($NoWorklog) { $argv += "--no-worklog" }
+    if ($pluginsGiven) { $argv += "--plugins=$Plugins" }
+    if ($NoPlugins) { $argv += "--no-plugins" }
+    if ($PluginHooks) { $argv += "--plugin-hooks" }
 
-# 3. settings.json — idempotent merge (same Python merge as install.sh, so behavior can't drift).
-#    Passes the resolved Python command so the baked-in hook commands actually run on Windows.
-$mergeScript = @'
-import json, os, sys, shutil, time
-d, pycmd, sl_cmd = sys.argv[1], sys.argv[2], sys.argv[3]
-want_worklog = len(sys.argv) > 4 and sys.argv[4] == "1"
-settings = os.path.join(d, "settings.json")
-hooks = os.path.join(d, "hooks").replace("\\", "/")
-
-cfg = {}
-if os.path.exists(settings):
-    with open(settings) as f:
-        cfg = json.load(f)
-    shutil.copy2(settings, settings + ".bak-" + time.strftime("%Y%m%d-%H%M%S"))
-
-WANT = {
-    "UserPromptSubmit": [
-        (None, "icon-reminder.py"),
-        (None, "correction-primer.py"),
-        (None, "commit-style-primer.py"),
-    ],
-    "PreToolUse": [
-        ("AskUserQuestion", "deny-askuserquestion.py"),
-        ("Agent", "agent-guard.py"),
-        ("Bash", "git-guard.py"),
-        ("Bash|PowerShell", "sleep-guard.py"),
-        (None, "spend-guard.py"),
-        ("Write|Edit", "nul-guard.py"),
-    ],
-    "Stop": [
-        (None, "tie-break-guard.py"),
-    ],
-    "PreCompact": [
-        (None, "compact-snapshot.py"),
-    ],
-    "SessionStart": [
-        ("compact", "compact-resume.py"),
-    ],
-    "PostCompact": [
-        ("manual", "compact-continue.py", {"asyncRewake": True}),
-    ],
-}
-
-def have(groups):
-    return {x["command"] for g in groups for x in g.get("hooks", []) if x.get("command")}
-
-h = cfg.setdefault("hooks", {})
-for event, wants in WANT.items():
-    groups = h.setdefault(event, [])
-    present = have(groups)
-    for matcher, script, *extra in wants:
-        cmd = f"{pycmd} {hooks}/{script}"
-        if cmd in present:
-            continue
-        entry = {"hooks": [{"type": "command", "command": cmd, **(extra[0] if extra else {})}]}
-        if matcher:
-            entry["matcher"] = matcher
-        groups.append(entry)
-
-if "attribution" not in cfg:
-    cfg["attribution"] = {"commit": "", "pr": "", "sessionUrl": False}
-
-if "statusLine" not in cfg:
-    cfg["statusLine"] = {"type": "command", "command": sl_cmd}
-
-# env — opt out of telemetry, per-key, keeping any value you've already chosen.
-# The `opus` alias stays unpinned (it resolves to the latest Opus):
-# ANTHROPIC_DEFAULT_OPUS_MODEL is removed when it is exactly `claude-opus-4-8`
-# (the former kit pin, indistinguishable from a hand-set copy of it); any other
-# value is kept.
-env = cfg.setdefault("env", {})
-env.setdefault("DO_NOT_TRACK", "1")
-if env.get("ANTHROPIC_DEFAULT_OPUS_MODEL") == "claude-opus-4-8":
-    del env["ANTHROPIC_DEFAULT_OPUS_MODEL"]
-
-# Opinionated config defaults that reinforce the guardrails above (no artifacts,
-# no AI co-author line, deterministic worktrees, less UI noise (no suggestions, no spinner
-# tips), high effort, automatic compaction on, session transcripts kept instead of purged
-# after 30 days).
-# Each only if you haven't chosen your own value — never clobbers.
-DEFAULTS = {
-    "includeCoAuthoredBy": False,
-    "enableArtifact": False,
-    "askUserQuestionTimeout": "never",
-    "worktree": {"baseRef": "fresh"},
-    "feedbackDrafts": "off",
-    "promptSuggestionEnabled": False,
-    "spinnerTipsEnabled": False,
-    "remoteControlAtStartup": False,
-    "effortLevel": "high",
-    "autoCompactEnabled": True,
-    "cleanupPeriodDays": 36500,
-}
-for k, v in DEFAULTS.items():
-    cfg.setdefault(k, v)
-
-# Register the matlomax plugin marketplace globally — ONLY when the worklog add-on
-# is selected. The marketplace becomes known everywhere; NO plugin is enabled
-# globally (enablement stays per-project, via `npx github:MatLomax/claude-plugins`).
-if want_worklog:
-    mkt = cfg.setdefault("extraKnownMarketplaces", {})
-    mkt.setdefault("matlomax", {"source": {"source": "github", "repo": "MatLomax/claude-plugins"}})
-
-with open(settings, "w") as f:
-    json.dump(cfg, f, indent=2)
-    f.write("\n")
-print("merged hooks + attribution + statusLine + env + config defaults into settings.json")
-'@
-
-$tmp = Join-Path $env:TEMP "claude-starterkit-merge-$Stamp.py"
-Set-Content -Path $tmp -Value $mergeScript -Encoding UTF8
-try {
-  $parts = $PyCmd.Split(" ")
-  $exe = $parts[0]
-  $rest = if ($parts.Length -gt 1) { $parts[1..($parts.Length-1)] } else { @() }
-  $wlFlag = if ($WantWorklog) { "1" } else { "0" }
-  & $exe @rest $tmp $ClaudeDir $PyCmd $SlCmd $wlFlag
-  if ($LASTEXITCODE -ne 0) { throw "settings.json merge failed" }
-} finally {
-  Remove-Item $tmp -ErrorAction SilentlyContinue
-}
-
-Write-Host ""
-Write-Host "Done. Restart Claude Code (or start a fresh session) for the hooks to take effect."
+    & $exe @argv
+    $status = $LASTEXITCODE
+  } finally {
+    Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
+  }
+  # Run as a file, pass the installer's exit code on. Under `irm | iex` this script runs inside the
+  # caller's own session, where `exit` would close their window, so leave the code in $LASTEXITCODE.
+  if ($asFile) { exit $status }
+  $global:LASTEXITCODE = $status
+} ([bool]$MyInvocation.MyCommand.Path) ($PSBoundParameters.ContainsKey("Plugins"))

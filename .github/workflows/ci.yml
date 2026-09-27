@@ -1,0 +1,125 @@
+name: ci
+
+# Tests the installer on every platform it ships for, then installs through the real bootstraps
+# (the curl | sh and irm | iex one-liners) against freshly built release assets, served locally
+# the way GitHub serves them.
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go vet ./...
+      - run: go test ./...
+
+  bootstrap-unix:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Install through the one-liner
+        env:
+          STARTERKIT_BASE_URL: http://127.0.0.1:8765
+        run: |
+          set -euo pipefail
+          scripts/build-release.sh 0.0.0-ci "$RUNNER_TEMP/assets"
+          (cd "$RUNNER_TEMP/assets" && exec python3 -m http.server 8765 >/dev/null 2>&1) &
+          curl -fsS --retry 30 --retry-connrefused --retry-delay 1 -o /dev/null "$STARTERKIT_BASE_URL/install.sh"
+
+          export CLAUDE_CONFIG_DIR="$RUNNER_TEMP/claude"
+          curl -fsSL "$STARTERKIT_BASE_URL/install.sh" | sh -s -- --no-plugins
+          grep -qx '@./CLAUDE.starterkit.md' "$CLAUDE_CONFIG_DIR/CLAUDE.md"
+          grep -qx '@./CLAUDE.starterkit-worklog.md' "$CLAUDE_CONFIG_DIR/CLAUDE.md"
+          python3 - "$CLAUDE_CONFIG_DIR" <<'PY'
+          import json, os, sys
+          d = sys.argv[1]
+          cfg = json.load(open(os.path.join(d, "settings.json")))
+          cmds = [h["command"] for g in cfg["hooks"].values() for e in g for h in e["hooks"]]
+          assert all(c.startswith("python3 " + os.path.join(d, "hooks")) for c in cmds), cmds
+          for c in cmds:
+              assert os.access(c.split(" ", 1)[1], os.X_OK), c
+          assert cfg["statusLine"]["command"] == "bash " + os.path.join(d, "statusline-command.sh")
+          assert cfg["extraKnownMarketplaces"]["matlomax"]
+          print(len(cmds), "hooks wired")
+          PY
+          # A second run changes nothing.
+          cp "$CLAUDE_CONFIG_DIR/settings.json" "$RUNNER_TEMP/first.json"
+          curl -fsSL "$STARTERKIT_BASE_URL/install.sh" | sh -s -- --no-plugins
+          diff "$RUNNER_TEMP/first.json" "$CLAUDE_CONFIG_DIR/settings.json"
+
+          # ripwire through its own official installer, in a sandboxed HOME (Linux only: its
+          # prebuilt binaries cover Linux and Apple-silicon macOS, and this keeps CI to one run).
+          if [ "$RUNNER_OS" = Linux ]; then
+            export HOME="$RUNNER_TEMP/home" CLAUDE_CONFIG_DIR="$RUNNER_TEMP/home/.claude"
+            mkdir -p "$CLAUDE_CONFIG_DIR"
+            curl -fsSL "$STARTERKIT_BASE_URL/install.sh" | sh -s -- --no-worklog --plugins=ripwire --plugin-hooks
+            "$HOME/.local/bin/ripwire" --version
+            grep -q ripwire "$CLAUDE_CONFIG_DIR/settings.json"
+          fi
+
+  bootstrap-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Build the release assets
+        shell: bash
+        run: scripts/build-release.sh 0.0.0-ci "$RUNNER_TEMP/assets"
+      - name: Install through the one-liner
+        shell: pwsh
+        env:
+          STARTERKIT_BASE_URL: http://127.0.0.1:8765
+        run: |
+          $ErrorActionPreference = "Stop"
+          Start-Process python -ArgumentList "-m", "http.server", "8765" -WorkingDirectory (Join-Path $env:RUNNER_TEMP "assets") -WindowStyle Hidden
+          curl.exe -fsS --retry 30 --retry-connrefused --retry-delay 1 -o NUL "$env:STARTERKIT_BASE_URL/install.ps1"
+          if ($LASTEXITCODE -ne 0) { throw "asset server did not come up" }
+
+          $env:CLAUDE_CONFIG_DIR = Join-Path $env:RUNNER_TEMP "claude"
+          irm "$env:STARTERKIT_BASE_URL/install.ps1" | iex
+          if ($LASTEXITCODE -ne 0) { throw "installer exited $LASTEXITCODE" }
+          $md = Get-Content (Join-Path $env:CLAUDE_CONFIG_DIR "CLAUDE.md")
+          if ($md -notcontains "@./CLAUDE.starterkit.md") { throw "CLAUDE.md import missing" }
+          $cfg = Get-Content (Join-Path $env:CLAUDE_CONFIG_DIR "settings.json") -Raw | ConvertFrom-Json
+          $cmds = $cfg.hooks.PSObject.Properties.Value | ForEach-Object { $_ } | ForEach-Object { $_.hooks } | ForEach-Object { $_.command }
+          foreach ($c in $cmds) { if ($c -notmatch '^(py -3|python|python3) [A-Za-z]:/.+/hooks/[a-z-]+\.py$') { throw "bad hook command: $c" } }
+          if ($cfg.statusLine.command -notmatch '-NoProfile -File ".+/statusline-command\.ps1"$') { throw "bad statusLine: $($cfg.statusLine.command)" }
+          if (-not (Test-Path (Join-Path $env:CLAUDE_CONFIG_DIR "statusline-command.ps1"))) { throw "statusline script missing" }
+          Write-Host "$($cmds.Count) hooks wired"
+
+          # Options through the scriptblock form.
+          $env:CLAUDE_CONFIG_DIR = Join-Path $env:RUNNER_TEMP "claude2"
+          & ([scriptblock]::Create((irm "$env:STARTERKIT_BASE_URL/install.ps1"))) -NoWorklog -NoPlugins
+          if ($LASTEXITCODE -ne 0) { throw "installer exited $LASTEXITCODE" }
+          if (Test-Path (Join-Path $env:CLAUDE_CONFIG_DIR "CLAUDE.starterkit-worklog.md")) { throw "-NoWorklog ignored" }
+          # ripwire has no Windows installer: naming it fails, after the core install still ran.
+          $env:CLAUDE_CONFIG_DIR = Join-Path $env:RUNNER_TEMP "claude3"
+          & ([scriptblock]::Create((irm "$env:STARTERKIT_BASE_URL/install.ps1"))) -Plugins ripwire
+          if ($LASTEXITCODE -eq 0) { throw "-Plugins ripwire must fail on Windows" }
+          if (-not (Test-Path (Join-Path $env:CLAUDE_CONFIG_DIR "settings.json"))) { throw "core install skipped" }
+          $global:LASTEXITCODE = 0
+          Write-Host "options passed through"
+
+          # irm | iex runs in the caller's session: it must leave no settings or variables behind.
+          $env:CLAUDE_CONFIG_DIR = Join-Path $env:RUNNER_TEMP "claude4"
+          pwsh -NoProfile -Command 'irm "$env:STARTERKIT_BASE_URL/install.ps1" | iex; if ($ErrorActionPreference -ne "Continue") { exit 3 }; if (Test-Path variable:tmp) { exit 4 }; if (Test-Path variable:exe) { exit 5 }; exit $LASTEXITCODE'
+          if ($LASTEXITCODE -ne 0) { throw "irm | iex changed the caller's session (exit $LASTEXITCODE)" }

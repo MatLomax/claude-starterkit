@@ -11,13 +11,13 @@ installer, tick **"Add Python to PATH"**.
 
 ## Option A — run the installer (recommended)
 
-From this folder, in PowerShell:
+In PowerShell:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\install.ps1
+irm https://github.com/MatLomax/claude-starterkit/releases/latest/download/install.ps1 | iex
 ```
 
-Then **restart Claude Code** (or start a fresh session) so the hooks load. The script:
+Then **restart Claude Code** (or start a fresh session) so the hooks load. The installer:
 
 - detects your Python command (`py -3`, `python`, or `python3`) and bakes the working one into the
   hook commands — Windows rarely has a bare `python3`;
@@ -25,12 +25,20 @@ Then **restart Claude Code** (or start a fresh session) so the hooks load. The s
   import to your `CLAUDE.md` (never overwriting it); backs up `settings.json` (timestamped `.bak-…`);
 - merges into `settings.json` without touching your other settings.
 
-Re-running is safe (idempotent). It honours `$env:CLAUDE_CONFIG_DIR` if set, else
-`%USERPROFILE%\.claude`.
+Re-running the same one-liner is safe (idempotent) and upgrades to the latest release. It honours
+`$env:CLAUDE_CONFIG_DIR` if set, else `%USERPROFILE%\.claude`.
 
 It prompts whether to install the optional **worklog** task-log add-on, defaulting to yes (press
-Enter to accept). Pass `-NoWorklog` (or set `$env:STARTERKIT_WORKLOG = "0"` first) to skip it, or
-`-WithWorklog` to install without prompting; non-interactive runs install it by default.
+Enter to accept). `| iex` cannot pass options, so use the scriptblock form to pass them:
+
+```powershell
+& ([scriptblock]::Create((irm https://github.com/MatLomax/claude-starterkit/releases/latest/download/install.ps1))) -NoWorklog
+```
+
+`-NoWorklog` (or `$env:STARTERKIT_WORKLOG = "0"` first) skips it, `-WithWorklog` installs it without
+prompting; non-interactive runs install it by default. The recommended plugins in `README.md` are
+listed too; ripwire has no official Windows installer, so it is shown with a link to its releases
+page instead.
 
 ---
 
@@ -150,8 +158,9 @@ don't replace what's there).
 - **Hooks don't fire** — open `settings.json` and confirm the `command` prefix (`py -3` / `python`)
   is one that runs in *your* shell. Run one by hand to check, e.g.
   `py -3 %USERPROFILE%\.claude\hooks\git-guard.py` (it will just wait for stdin — Ctrl+C to exit).
-- **Script won't run / execution policy** — use the exact `-ExecutionPolicy Bypass` invocation in
-  Option A; it applies only to that one run and changes nothing permanently.
+- **Execution policy** — `irm … | iex` runs the downloaded text directly, so the script execution
+  policy does not block it. To run a saved `install.ps1` file instead, use
+  `powershell -ExecutionPolicy Bypass -File .\install.ps1`, which applies only to that one run.
 
 ---
 

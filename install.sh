@@ -1,213 +1,73 @@
-#!/usr/bin/env bash
-# Installs a shared Claude Code user-level ruleset + guardrail hooks.
+#!/bin/sh
+# Installs the Claude Code starterkit: downloads the installer binary for this OS and CPU from the
+# latest GitHub release, checks its SHA-256, and runs it. Every flag is passed through to it
+# (see --help). Safe to re-run.
 #
-#   - installs ~/.claude/CLAUDE.starterkit.md and ensure-appends an idempotent
-#     `@./CLAUDE.starterkit.md` import to ~/.claude/CLAUDE.md (never overwrites it)
-#   - installs ~/.claude/hooks/*.py        (the guardrail + primer hooks)
-#   - merges hooks + AI-attribution suppression + env (DO_NOT_TRACK) +
-#     opinionated config defaults into ~/.claude/settings.json,
-#     idempotently and WITHOUT clobbering your existing settings.
-#   - with the worklog add-on selected, registers the `matlomax` plugin
-#     marketplace globally (no plugin is enabled globally — that stays per-project)
+#   curl -fsSL https://github.com/MatLomax/claude-starterkit/releases/latest/download/install.sh | sh
+#   curl -fsSL https://github.com/MatLomax/claude-starterkit/releases/latest/download/install.sh | sh -s -- --no-worklog
 #
-# Safe to re-run. Restart Claude Code (or start a fresh session) afterwards for the hooks to load.
-set -euo pipefail
+# STARTERKIT_VERSION=X.Y.Z installs that release instead of the latest.
+set -eu
 
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+REPO="MatLomax/claude-starterkit"
 
-# The worklog task-log add-on: --with-worklog / --no-worklog, else the STARTERKIT_WORKLOG env var,
-# else an interactive prompt that DEFAULTS TO YES (press Enter to install it). Non-interactive runs
-# (piped / CI) default to yes too; use --no-worklog or STARTERKIT_WORKLOG=0 to skip.
-WANT_WORKLOG="${STARTERKIT_WORKLOG:-}"
-for arg in "$@"; do
-  case "$arg" in
-    --with-worklog) WANT_WORKLOG=1 ;;
-    --no-worklog)   WANT_WORKLOG=0 ;;
-    -h|--help)
-      cat <<'EOF'
-Usage: ./install.sh [--no-worklog | --with-worklog]
+die() { echo "install.sh: $*" >&2; exit 1; }
 
-Installs the Claude Code ruleset + guardrail hooks into your Claude config dir.
-Safe to re-run. Honours $CLAUDE_CONFIG_DIR, else ~/.claude.
+case "$(uname -s)" in
+  Linux)  os=linux ;;
+  Darwin) os=macos ;;
+  *) die "unsupported OS $(uname -s); on Windows run install.ps1 (see the README)" ;;
+esac
+case "$(uname -m)" in
+  x86_64|amd64)  arch=x64 ;;
+  aarch64|arm64) arch=arm64 ;;
+  *) die "no prebuilt installer for $(uname -s)/$(uname -m)" ;;
+esac
+asset="starterkit-install-$os-$arch"
 
-The worklog task-log add-on is offered by a prompt that defaults to yes (Enter installs it).
-  --no-worklog     skip the worklog add-on (no prompt)
-  --with-worklog   install it without prompting
-  (env STARTERKIT_WORKLOG=0 skips it, =1 installs it; non-interactive runs default to install)
-EOF
-      exit 0 ;;
-  esac
-done
-if [ -z "$WANT_WORKLOG" ]; then
-  if [ -t 0 ]; then
-    printf 'Install the worklog task-log add-on? (needs the worklog MCP tool) [Y/n] '
-    read -r _ans || _ans=""
-    case "$_ans" in [Nn]*) WANT_WORKLOG=0 ;; *) WANT_WORKLOG=1 ;; esac
-  else
-    WANT_WORKLOG=1
-  fi
-fi
-
-mkdir -p "$CLAUDE_DIR/hooks"
-
-# 1. Ruleset — install as CLAUDE.starterkit.md and import it from your CLAUDE.md.
-#    Your CLAUDE.md is never overwritten; we only ensure ONE @import line is present.
-cp "$HERE/CLAUDE.starterkit.md" "$CLAUDE_DIR/CLAUDE.starterkit.md"
-for part in agents git compaction; do
-  cp "$HERE/CLAUDE.starterkit-$part.md" "$CLAUDE_DIR/CLAUDE.starterkit-$part.md"
-done
-echo "installed CLAUDE.starterkit.md + its imported parts (-agents, -git, -compaction)"
-IMPORT_LINE="@./CLAUDE.starterkit.md"
-CLAUDE_MD="$CLAUDE_DIR/CLAUDE.md"
-if [ -f "$CLAUDE_MD" ] && grep -qF "$IMPORT_LINE" "$CLAUDE_MD"; then
-  echo "CLAUDE.md already imports CLAUDE.starterkit.md"
+if [ -n "${STARTERKIT_VERSION:-}" ]; then
+  base="https://github.com/$REPO/releases/download/v${STARTERKIT_VERSION#v}"
 else
-  { [ -s "$CLAUDE_MD" ] && printf '\n'; printf '%s\n' "$IMPORT_LINE"; } >> "$CLAUDE_MD"
-  echo "appended '$IMPORT_LINE' to CLAUDE.md"
+  base="https://github.com/$REPO/releases/latest/download"
 fi
+# STARTERKIT_BASE_URL points at another copy of the release assets (a test server or a local
+# directory as file:///...).
+base="${STARTERKIT_BASE_URL:-$base}"
 
-# 1b. Optional worklog add-on — installed and imported only if requested.
-WL_FILE="CLAUDE.starterkit-worklog.md"
-WL_IMPORT="@./$WL_FILE"
-if [ "$WANT_WORKLOG" = "1" ]; then
-  cp "$HERE/$WL_FILE" "$CLAUDE_DIR/$WL_FILE"
-  if [ -f "$CLAUDE_MD" ] && grep -qF "$WL_IMPORT" "$CLAUDE_MD"; then
-    echo "CLAUDE.md already imports $WL_FILE"
-  else
-    { [ -s "$CLAUDE_MD" ] && printf '\n'; printf '%s\n' "$WL_IMPORT"; } >> "$CLAUDE_MD"
-    echo "appended '$WL_IMPORT' to CLAUDE.md (worklog add-on)"
-  fi
+if command -v curl >/dev/null 2>&1; then
+  fetch() { curl -fsSL -o "$2" "$1"; }
+elif command -v wget >/dev/null 2>&1; then
+  fetch() { wget -q -O "$2" "$1"; }
 else
-  echo "skipping worklog add-on (--no-worklog / STARTERKIT_WORKLOG=0)"
+  die "needs curl or wget"
+fi
+if command -v sha256sum >/dev/null 2>&1; then
+  sha256() { sha256sum "$1" | cut -d' ' -f1; }
+elif command -v shasum >/dev/null 2>&1; then
+  sha256() { shasum -a 256 "$1" | cut -d' ' -f1; }
+else
+  die "needs sha256sum or shasum to verify the download"
 fi
 
-# 2. hooks
-cp "$HERE"/hooks/*.py "$CLAUDE_DIR/hooks/"
-chmod +x "$CLAUDE_DIR"/hooks/*.py
-echo "installed $(ls -1 "$HERE"/hooks/*.py | wc -l) hook scripts"
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT INT TERM
 
-# 2b. statusline script (needs jq + awk at render time; standard on Linux/macOS).
-cp "$HERE/statusline-command.sh" "$CLAUDE_DIR/statusline-command.sh"
-chmod +x "$CLAUDE_DIR/statusline-command.sh"
-echo "installed statusline-command.sh"
+fetch "$base/$asset" "$tmp/$asset" || die "download failed: $base/$asset"
+fetch "$base/$asset.sha256" "$tmp/$asset.sha256" || die "download failed: $base/$asset.sha256"
+want="$(cut -d' ' -f1 < "$tmp/$asset.sha256")"
+got="$(sha256 "$tmp/$asset")"
+[ -n "$want" ] && [ "$want" = "$got" ] || die "checksum mismatch for $asset (expected $want, got $got)"
+chmod +x "$tmp/$asset"
 
-# 2c. Opt-in review rules. Installed, never imported: they apply only where a CLAUDE.md
-#     imports @~/.claude/review-rules.md (they cost tokens every session, so off by default).
-cp "$HERE/review-rules.md" "$CLAUDE_DIR/review-rules.md"
-echo "installed review-rules.md (opt-in: import @~/.claude/review-rules.md to enable)"
-
-# 3. settings.json — idempotent merge (backs up; never clobbers other keys or existing hooks).
-SL_CMD="bash $CLAUDE_DIR/statusline-command.sh"
-python3 - "$CLAUDE_DIR" "$SL_CMD" "$WANT_WORKLOG" <<'PY'
-import json, os, sys, shutil, time
-d = sys.argv[1]
-sl_cmd = sys.argv[2]
-want_worklog = len(sys.argv) > 3 and sys.argv[3] == "1"
-settings = os.path.join(d, "settings.json")
-hooks = os.path.join(d, "hooks")
-
-cfg = {}
-if os.path.exists(settings):
-    with open(settings) as f:
-        cfg = json.load(f)
-    shutil.copy2(settings, settings + ".bak-" + time.strftime("%Y%m%d-%H%M%S"))
-
-WANT = {
-    "UserPromptSubmit": [
-        (None, "icon-reminder.py"),
-        (None, "correction-primer.py"),
-        (None, "commit-style-primer.py"),
-    ],
-    "PreToolUse": [
-        ("AskUserQuestion", "deny-askuserquestion.py"),
-        ("Agent", "agent-guard.py"),
-        ("Bash", "git-guard.py"),
-        ("Bash|PowerShell", "sleep-guard.py"),
-        (None, "spend-guard.py"),
-        ("Write|Edit", "nul-guard.py"),
-    ],
-    "Stop": [
-        (None, "tie-break-guard.py"),
-    ],
-    "PreCompact": [
-        (None, "compact-snapshot.py"),
-    ],
-    "SessionStart": [
-        ("compact", "compact-resume.py"),
-    ],
-    "PostCompact": [
-        ("manual", "compact-continue.py", {"asyncRewake": True}),
-    ],
-}
-
-def have(groups):
-    return {x["command"] for g in groups for x in g.get("hooks", []) if x.get("command")}
-
-h = cfg.setdefault("hooks", {})
-for event, wants in WANT.items():
-    groups = h.setdefault(event, [])
-    present = have(groups)
-    for matcher, script, *extra in wants:
-        cmd = f"python3 {hooks}/{script}"
-        if cmd in present:
-            continue
-        entry = {"hooks": [{"type": "command", "command": cmd, **(extra[0] if extra else {})}]}
-        if matcher:
-            entry["matcher"] = matcher
-        groups.append(entry)
-
-# AI-attribution suppression — only if you haven't set it yourself.
-if "attribution" not in cfg:
-    cfg["attribution"] = {"commit": "", "pr": "", "sessionUrl": False}
-
-# statusLine — only if you haven't set one yourself.
-if "statusLine" not in cfg:
-    cfg["statusLine"] = {"type": "command", "command": sl_cmd}
-
-# env — opt out of telemetry, per-key, keeping any value you've already chosen.
-# The `opus` alias stays unpinned (it resolves to the latest Opus):
-# ANTHROPIC_DEFAULT_OPUS_MODEL is removed when it is exactly `claude-opus-4-8`
-# (the former kit pin, indistinguishable from a hand-set copy of it); any other
-# value is kept.
-env = cfg.setdefault("env", {})
-env.setdefault("DO_NOT_TRACK", "1")
-if env.get("ANTHROPIC_DEFAULT_OPUS_MODEL") == "claude-opus-4-8":
-    del env["ANTHROPIC_DEFAULT_OPUS_MODEL"]
-
-# Opinionated config defaults that reinforce the guardrails above (no artifacts,
-# no AI co-author line, deterministic worktrees, less UI noise (no suggestions, no spinner
-# tips), high effort, automatic compaction on, session transcripts kept instead of purged
-# after 30 days).
-# Each only if you haven't chosen your own value — never clobbers.
-DEFAULTS = {
-    "includeCoAuthoredBy": False,
-    "enableArtifact": False,
-    "askUserQuestionTimeout": "never",
-    "worktree": {"baseRef": "fresh"},
-    "feedbackDrafts": "off",
-    "promptSuggestionEnabled": False,
-    "spinnerTipsEnabled": False,
-    "remoteControlAtStartup": False,
-    "effortLevel": "high",
-    "autoCompactEnabled": True,
-    "cleanupPeriodDays": 36500,
-}
-for k, v in DEFAULTS.items():
-    cfg.setdefault(k, v)
-
-# Register the matlomax plugin marketplace globally — ONLY when the worklog add-on
-# is selected. The marketplace becomes known everywhere; NO plugin is enabled
-# globally (enablement stays per-project, via `npx github:MatLomax/claude-plugins`).
-if want_worklog:
-    mkt = cfg.setdefault("extraKnownMarketplaces", {})
-    mkt.setdefault("matlomax", {"source": {"source": "github", "repo": "MatLomax/claude-plugins"}})
-
-with open(settings, "w") as f:
-    json.dump(cfg, f, indent=2)
-    f.write("\n")
-print("merged hooks + attribution + statusLine + env + config defaults into settings.json")
-PY
-
-echo
-echo "Done. Restart Claude Code (or start a fresh session) for the hooks to take effect."
+# Piped into sh, this script's stdin is the pipe, not the keyboard. Give the installer the terminal
+# so its prompts work; with no terminal it runs non-interactively.
+set +e
+if [ -t 0 ]; then
+  "$tmp/$asset" "$@"
+elif (exec </dev/tty) 2>/dev/null; then
+  "$tmp/$asset" "$@" </dev/tty
+else
+  "$tmp/$asset" "$@"
+fi
+status=$?
+exit "$status"

@@ -10,22 +10,65 @@ your own (see [What it installs](#what-it-installs)).
 
 ## Install
 
-```bash
-./install.sh
+macOS / Linux:
+
+```sh
+curl -fsSL https://github.com/MatLomax/claude-starterkit/releases/latest/download/install.sh | sh
 ```
 
-On **Windows**, run the PowerShell installer instead and see `INSTRUCTIONS-windows.md`:
+Windows (PowerShell; see `INSTRUCTIONS-windows.md`):
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\install.ps1
+irm https://github.com/MatLomax/claude-starterkit/releases/latest/download/install.ps1 | iex
 ```
+
+The same one-liner reinstalls or upgrades; no local copy of this repo is needed. It downloads the
+installer for your OS and CPU from the latest release, checks its SHA-256, and runs it. The installer
+is a single self-contained binary with the ruleset, hooks and statusline built in, so nothing but
+Python 3 (which the hooks need) has to be installed first.
 
 Then **restart Claude Code** (or start a fresh session) so the hooks load. Re-running is safe
 (idempotent). It installs the ruleset as a separate `~/.claude/CLAUDE.starterkit.md` and
 ensure-appends a single `@./CLAUDE.starterkit.md` import to your `~/.claude/CLAUDE.md` — **your own
 `CLAUDE.md` is never overwritten**. It **backs up** `~/.claude/settings.json` (timestamped `.bak-…`)
-and **merges** into it without clobbering your other config. Honours `$CLAUDE_CONFIG_DIR` if set,
-else `~/.claude`.
+and **merges** into it without clobbering or reordering your other config. Honours
+`$CLAUDE_CONFIG_DIR` if set, else `~/.claude`.
+
+Options pass through to the installer (`--help` lists them all):
+
+```sh
+curl -fsSL https://github.com/MatLomax/claude-starterkit/releases/latest/download/install.sh | sh -s -- --no-worklog --no-plugins
+```
+
+```powershell
+& ([scriptblock]::Create((irm https://github.com/MatLomax/claude-starterkit/releases/latest/download/install.ps1))) -NoWorklog -NoPlugins
+```
+
+`STARTERKIT_VERSION=X.Y.Z` installs a specific release instead of the latest. Prebuilt installers
+cover Linux and macOS (x64 and arm64) and Windows (x64 and arm64). Running `./install.sh` or
+`install.ps1` from a clone of this repo does the same as the one-liner: it downloads the released
+installer.
+
+## Recommended plugins
+
+Along with the worklog question, the installer offers a short list of recommended plugins in a
+multiselect, **none ticked by default**, and installs the ticked ones after the core install. Nothing is vendored: ticking one runs that plugin's own official
+installer, and re-running it updates the plugin.
+
+- **[ripwire](https://github.com/redhat-et/ripwire)** — deterministic codebase maps for coding agents
+  (a CLI plus agent skills). Installed with ripwire's documented quick install
+  (`RIPWIRE_REPO=redhat-et/ripwire bash -c "$(curl -fsSL …/scripts/install.sh)"`), which verifies its
+  release, installs the binary to `~/.local/bin` and activates its skills. Once it installs, the
+  installer offers to register ripwire's Claude Code hooks (`<prefix>/share/ripwire/skills/install.sh
+  --hook`: a session-start primer, a prompt router and a tool-call recorder that never blocks),
+  defaulting to yes; if `jq` (which those hooks need) is missing, it says so and defaults to no.
+  ripwire has no official Windows installer, so on Windows it is listed with a link to its releases.
+
+Without a terminal (CI, scripts) the installer prompts for nothing: it installs only the plugins named
+with `--plugins=ripwire` (or `STARTERKIT_PLUGINS=ripwire`), and runs their follow-up steps only with
+`--plugin-hooks` (`STARTERKIT_PLUGIN_HOOKS=1`). `--no-plugins` skips the list. A plugin that fails to
+install, or that has no installer on this platform, is reported at the end with a non-zero exit, and
+does not undo or stop the rest of the install.
 
 ## What it installs
 

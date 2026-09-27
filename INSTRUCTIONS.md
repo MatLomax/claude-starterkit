@@ -6,18 +6,25 @@ Two ways to install — the automated script, or the manual steps. Either is fin
 
 ## Option A — run the installer (recommended)
 
-```bash
-./install.sh
+```sh
+curl -fsSL https://github.com/MatLomax/claude-starterkit/releases/latest/download/install.sh | sh
 ```
 
-Then **restart Claude Code** (or start a fresh session) so the hooks load. The script installs the
-ruleset as `~/.claude/CLAUDE.starterkit.md` and ensure-appends a single `@./CLAUDE.starterkit.md`
+Then **restart Claude Code** (or start a fresh session) so the hooks load. The installer puts the
+ruleset at `~/.claude/CLAUDE.starterkit.md` and ensure-appends a single `@./CLAUDE.starterkit.md`
 import to your `~/.claude/CLAUDE.md` (never overwriting it), backs up `~/.claude/settings.json`, and
-merges into `settings.json` without touching your other settings. Re-running is safe.
+merges into `settings.json` without touching your other settings. Re-running the same one-liner is
+safe and upgrades to the latest release.
 
 It prompts whether to install the optional **worklog** task-log add-on, defaulting to yes (press
 Enter to accept). Pass `--no-worklog` (or `STARTERKIT_WORKLOG=0`) to skip it, or `--with-worklog` to
-install without prompting; non-interactive runs install it by default.
+install without prompting; non-interactive runs install it by default. It also offers the
+recommended plugins (see `README.md`), none ticked by default, and installs any you tick after the
+core install. Options go after `sh -s --`:
+
+```sh
+curl -fsSL https://github.com/MatLomax/claude-starterkit/releases/latest/download/install.sh | sh -s -- --no-worklog
+```
 
 ---
 
