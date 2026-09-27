@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-09-27
+
 ### Added
 
 - `hooks/gh-run-wait.py` — a helper, not a hook, for waiting on a GitHub Actions run: `python3 ~/.claude/hooks/gh-run-wait.py <run URL>` (or a run ID with `-R OWNER/REPO`), run in the background, checks the run with HTTP GETs (`gh api`) every 15 seconds (`--interval`) and exits as soon as the run's status or conclusion changes or a job finishes, printing every job's state: exit 0 finished green, 1 finished otherwise, 3 changed and still running, 124 no change before the timeout (`--timeout`, default 300 seconds, bounding the whole wait, API calls included), 2 a usage or API error. A finished run returns at once. Its output is UTF-8 whatever the console codepage, so a job name a Windows codepage lacks cannot crash it. It replaces `gh run watch`, which proved unreliable, as the sanctioned CI wait; its limits are set by `hooks/sleep-guard.py`, not by the helper. The installer ships and installs it with the hooks (every `hooks/*.py`) and listed in `README.md`.
