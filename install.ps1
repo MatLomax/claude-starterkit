@@ -10,7 +10,7 @@ With options (| iex cannot pass arguments, so use the scriptblock form):
 
   -NoWorklog      skip the worklog add-on (no prompt)
   -WithWorklog    install it without prompting
-  -WithProjectMemory  keep each git repo's auto memory in <repo>\.claude\memory (no prompt)
+  -WithProjectMemory  keep each project's auto memory in <project>\.claude\memory (no prompt)
   -NoProjectMemory    skip the project-memory add-on (no prompt; the default)
   -Plugins LIST   install these recommended plugins without prompting (comma-separated)
   -NoPlugins      install no recommended plugins (no prompt)

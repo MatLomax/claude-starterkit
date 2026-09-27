@@ -22,7 +22,7 @@ type Options struct {
 	ClaudeDir     string    // the Claude config directory ($CLAUDE_CONFIG_DIR, else ~/.claude)
 	Payload       fs.FS     // the embedded starterkit files
 	Worklog       bool      // install and import the worklog add-on
-	ProjectMemory bool      // wire the project-memory hook (a git repo's auto memory in <repo>/.claude/memory/)
+	ProjectMemory bool      // wire the project-memory hook (a project's auto memory in <project>/.claude/memory/)
 	Windows       bool      // lay down the Windows variants (statusline .ps1, Python launcher command)
 	PyCmd         string    // the command hooks run under ("python3" on Unix; detected on Windows)
 	PsExe         string    // Windows only: "pwsh" or "powershell", for the statusline command

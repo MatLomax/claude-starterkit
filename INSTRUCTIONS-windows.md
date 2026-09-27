@@ -36,8 +36,8 @@ Enter to accept). `| iex` cannot pass options, so use the scriptblock form to pa
 ```
 
 `-NoWorklog` (or `$env:STARTERKIT_WORKLOG = "0"` first) skips it, `-WithWorklog` installs it without
-prompting; non-interactive runs install it by default. It then asks whether to keep each git
-repo's auto memory inside the repo (the project-memory add-on), defaulting to no:
+prompting; non-interactive runs install it by default. It then asks whether to keep each
+project's auto memory inside the project (the project-memory add-on), defaulting to no:
 `-WithProjectMemory` (or `$env:STARTERKIT_PROJECT_MEMORY = "1"` first) opts in without prompting. The
 hook links the memory directory with a directory junction, which needs neither administrator rights
 nor Developer Mode. The recommended plugins in `README.md` are
@@ -148,12 +148,18 @@ don't replace what's there).
 }
 ```
 
-*Optional:* to keep each git repo's auto memory inside the repo (the project-memory add-on, see
+*Optional:* to keep each project's auto memory inside the project (the project-memory add-on, see
 `README.md`), also add this entry to the `SessionStart` array. It has no matcher, so it runs however
 a session starts:
 
 ```json
 { "hooks": [ { "type": "command", "command": "py -3 C:/Users/YOU/.claude/hooks/project-memory.py" } ] }
+```
+
+and this one to the `PreToolUse` array, so the first memory saved lands in the project:
+
+```json
+{ "matcher": "Write|Edit", "hooks": [ { "type": "command", "command": "py -3 C:/Users/YOU/.claude/hooks/project-memory.py" } ] }
 ```
 
 - `attribution` (empty `commit`/`pr`, `sessionUrl:false`) suppresses AI attribution on commits/PRs.
@@ -192,9 +198,9 @@ Delete `%USERPROFILE%\.claude\CLAUDE.starterkit.md` and its imported parts
 from `%USERPROFILE%\.claude\CLAUDE.md`, restore the `settings.json.bak-…` you backed up, and delete
 the hook scripts from `%USERPROFILE%\.claude\hooks\`. If you enabled the worklog add-on, also delete
 `%USERPROFILE%\.claude\CLAUDE.starterkit-worklog.md` and its `@./CLAUDE.starterkit-worklog.md` line.
-If you enabled project memory, its `project-memory.py` entry goes with the rest of the hooks; the
-junctions it made and each repo's `.claude\memory\` stay, so move a repo's memories back before
-deleting its junction.
+If you enabled project memory, its `project-memory.py` entries go with the rest of the hooks; the
+junctions it made and each project's `.claude\memory\` stay, so move a project's memories back
+before deleting its junction.
 
 ## What each piece does
 

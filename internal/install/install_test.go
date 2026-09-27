@@ -167,8 +167,9 @@ func TestSettingsFreshInstall(t *testing.T) {
 	}
 }
 
-// The project-memory hook is wired only when its add-on is chosen, and then once, as a SessionStart
-// hook with no matcher so it runs however the session starts.
+// The project-memory hook is wired only when its add-on is chosen, and then once per event: a
+// SessionStart hook with no matcher, so it runs however the session starts, and a PreToolUse hook on
+// Write|Edit, so the first memory saved lands in the project.
 func TestProjectMemoryHookOnlyWhenChosen(t *testing.T) {
 	o := opts(t, false)
 	cmd := o.hookCommand("project-memory.py")
@@ -183,17 +184,29 @@ func TestProjectMemoryHookOnlyWhenChosen(t *testing.T) {
 		if err := Settings(o); err != nil {
 			t.Fatal(err)
 		}
-		if n := hookEntries(t, o, cmd); n != 1 {
-			t.Fatalf("run %d: %d project-memory entries, want 1", run, n)
+		if n := hookEntries(t, o, cmd); n != 2 {
+			t.Fatalf("run %d: %d project-memory entries, want 2", run, n)
 		}
 	}
 	hv, _ := settingsOf(t, o).Get("hooks")
-	groups, _ := hv.(*ojson.Object).Get("SessionStart")
-	for _, g := range groups.([]any) {
-		gobj := g.(*ojson.Object)
-		list, _ := gobj.Get("hooks")
-		if c, _ := list.([]any)[0].(*ojson.Object).Get("command"); c == cmd && gobj.Has("matcher") {
-			t.Fatal("project-memory hook has a matcher; it must run on every session start")
+	want := map[string]string{"SessionStart": "", "PreToolUse": "Write|Edit"}
+	for ev, matcher := range want {
+		groups, _ := hv.(*ojson.Object).Get(ev)
+		found := false
+		for _, g := range groups.([]any) {
+			gobj := g.(*ojson.Object)
+			list, _ := gobj.Get("hooks")
+			if c, _ := list.([]any)[0].(*ojson.Object).Get("command"); c != cmd {
+				continue
+			}
+			found = true
+			m, _ := gobj.Get("matcher")
+			if got, _ := m.(string); got != matcher {
+				t.Fatalf("%s project-memory matcher = %q, want %q", ev, got, matcher)
+			}
+		}
+		if !found {
+			t.Fatalf("project-memory hook not wired under %s", ev)
 		}
 	}
 }

@@ -65,15 +65,19 @@ jobs:
           curl -fsSL "$STARTERKIT_BASE_URL/install.sh" | sh -s -- --no-plugins
           diff "$RUNNER_TEMP/first.json" "$CLAUDE_CONFIG_DIR/settings.json"
 
-          # The project-memory add-on: wired by --with-project-memory, and its hook links a repo's
-          # memory directory to <repo>/.claude/memory.
+          # The project-memory add-on: wired by --with-project-memory (SessionStart and PreToolUse),
+          # and its hook links a repo's memory directory to <repo>/.claude/memory on the first write
+          # into it, not at session start.
           export CLAUDE_CONFIG_DIR="$RUNNER_TEMP/claude-pm"
           curl -fsSL "$STARTERKIT_BASE_URL/install.sh" | sh -s -- --with-project-memory --no-plugins
-          test "$(grep -c 'project-memory.py' "$CLAUDE_CONFIG_DIR/settings.json")" = 1
+          test "$(grep -c 'project-memory.py' "$CLAUDE_CONFIG_DIR/settings.json")" = 2
           repo="$RUNNER_TEMP/pm repo"
           git init -q "$repo"
-          printf '{"cwd": "%s/sub"}' "$repo" | python3 "$CLAUDE_CONFIG_DIR/hooks/project-memory.py"
           link="$CLAUDE_CONFIG_DIR/projects/$(printf '%s' "$repo" | tr -c 'a-zA-Z0-9' '-')/memory"
+          printf '{"hook_event_name": "SessionStart", "cwd": "%s/sub"}' "$repo" | python3 "$CLAUDE_CONFIG_DIR/hooks/project-memory.py"
+          test ! -e "$repo/.claude/memory"
+          printf '{"hook_event_name": "PreToolUse", "cwd": "%s/sub", "tool_name": "Write", "tool_input": {"file_path": "%s/MEMORY.md"}}' "$repo" "$link" |
+            CLAUDE_PROJECT_DIR="$repo/sub" python3 "$CLAUDE_CONFIG_DIR/hooks/project-memory.py"
           test "$(readlink "$link")" = "$repo/.claude/memory"
           grep -qx '/.claude/memory/' "$repo/.git/info/exclude"
 
@@ -125,19 +129,28 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "installer exited $LASTEXITCODE" }
           if (Test-Path (Join-Path $env:CLAUDE_CONFIG_DIR "CLAUDE.starterkit-worklog.md")) { throw "-NoWorklog ignored" }
           if ((Get-Content (Join-Path $env:CLAUDE_CONFIG_DIR "settings.json") -Raw) -match 'project-memory\.py') { throw "project-memory wired without being chosen" }
-          # The project-memory add-on: wired by -WithProjectMemory, and its hook links a repo's
-          # memory directory to <repo>\.claude\memory with a junction.
+          # The project-memory add-on: wired by -WithProjectMemory (SessionStart and PreToolUse), and
+          # its hook links a repo's memory directory to <repo>\.claude\memory with a junction on the
+          # first write into it.
           $env:CLAUDE_CONFIG_DIR = Join-Path $env:RUNNER_TEMP "claude7"
           & ([scriptblock]::Create((irm "$env:STARTERKIT_BASE_URL/install.ps1"))) -WithProjectMemory -NoPlugins
           if ($LASTEXITCODE -ne 0) { throw "installer exited $LASTEXITCODE" }
           $pm = @((Get-Content (Join-Path $env:CLAUDE_CONFIG_DIR "settings.json") -Raw | ConvertFrom-Json).hooks.SessionStart | ForEach-Object { $_.hooks } | Where-Object { $_.command -match 'project-memory\.py' })
-          if ($pm.Count -ne 1) { throw "-WithProjectMemory wired $($pm.Count) project-memory hooks, want 1" }
+          if ($pm.Count -ne 1) { throw "-WithProjectMemory wired $($pm.Count) SessionStart project-memory hooks, want 1" }
+          $pre = @((Get-Content (Join-Path $env:CLAUDE_CONFIG_DIR "settings.json") -Raw | ConvertFrom-Json).hooks.PreToolUse | Where-Object { $_.matcher -eq "Write|Edit" } | ForEach-Object { $_.hooks } | Where-Object { $_.command -match 'project-memory\.py' })
+          if ($pre.Count -ne 1) { throw "-WithProjectMemory wired $($pre.Count) Write|Edit project-memory hooks, want 1" }
           $repo = Join-Path $env:RUNNER_TEMP "pm repo"
           git init -q $repo
-          $out = @{ cwd = "$repo\sub" } | ConvertTo-Json -Compress | cmd /c $pm[0].command
-          if ($LASTEXITCODE -ne 0) { throw "project-memory hook exited $LASTEXITCODE" }
           $name = ($repo -replace '[^a-zA-Z0-9]', '-')
-          $link = Get-Item (Join-Path $env:CLAUDE_CONFIG_DIR "projects\$name\memory")
+          $linkPath = Join-Path $env:CLAUDE_CONFIG_DIR "projects\$name\memory"
+          $out = @{ hook_event_name = "SessionStart"; cwd = "$repo\sub" } | ConvertTo-Json -Compress | cmd /c $pm[0].command
+          if ($LASTEXITCODE -ne 0) { throw "project-memory hook exited $LASTEXITCODE" }
+          if (Test-Path (Join-Path $repo ".claude\memory")) { throw "session start created the memory dir; hook said: $out" }
+          $env:CLAUDE_PROJECT_DIR = "$repo\sub"
+          $out = @{ hook_event_name = "PreToolUse"; cwd = "$repo\sub"; tool_name = "Write"; tool_input = @{ file_path = "$linkPath\MEMORY.md" } } | ConvertTo-Json -Compress | cmd /c $pre[0].command
+          if ($LASTEXITCODE -ne 0) { throw "project-memory hook exited $LASTEXITCODE" }
+          Remove-Item Env:CLAUDE_PROJECT_DIR
+          $link = Get-Item $linkPath
           if ($link.LinkType -ne "Junction") { throw "memory dir is not a junction ($($link.LinkType)); hook said: $out" }
           if ((Resolve-Path $link.Target).Path -ne (Resolve-Path (Join-Path $repo ".claude\memory")).Path) { throw "junction points at $($link.Target)" }
           if (-not (Select-String -Path (Join-Path $repo ".git\info\exclude") -SimpleMatch "/.claude/memory/" -Quiet)) { throw "memory dir not excluded from git" }

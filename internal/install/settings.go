@@ -41,6 +41,7 @@ var Hooks = []hookEvent{
 		{script: "spend-guard.py"},
 		{matcher: "Write|Edit", script: "nul-guard.py"},
 		{script: "notification-guard.py"},
+		{matcher: "Write|Edit", script: "project-memory.py", addOn: projectMemoryAddOn},
 	}},
 	{"PostToolUse", []hook{
 		{script: "notification-guard.py"},

@@ -19,7 +19,7 @@ safe and upgrades to the latest release.
 It prompts whether to install the optional **worklog** task-log add-on, defaulting to yes (press
 Enter to accept). Pass `--no-worklog` (or `STARTERKIT_WORKLOG=0`) to skip it, or `--with-worklog` to
 install without prompting; non-interactive runs install it by default. It then asks whether to
-keep each git repo's auto memory inside the repo (the project-memory add-on), defaulting to no:
+keep each project's auto memory inside the project (the project-memory add-on), defaulting to no:
 `--with-project-memory` (or `STARTERKIT_PROJECT_MEMORY=1`) opts in without prompting. It also offers the
 recommended plugins (see `README.md`), none ticked by default, and installs any you tick after the
 core install. Options go after `sh -s --`:
@@ -124,12 +124,18 @@ commands.
 }
 ```
 
-*Optional:* to keep each git repo's auto memory inside the repo (the project-memory add-on, see
+*Optional:* to keep each project's auto memory inside the project (the project-memory add-on, see
 `README.md`), also add this entry to the `SessionStart` array. It has no matcher, so it runs however
 a session starts:
 
 ```json
 { "hooks": [ { "type": "command", "command": "python3 $HOME/.claude/hooks/project-memory.py" } ] }
+```
+
+and this one to the `PreToolUse` array, so the first memory saved lands in the project:
+
+```json
+{ "matcher": "Write|Edit", "hooks": [ { "type": "command", "command": "python3 $HOME/.claude/hooks/project-memory.py" } ] }
 ```
 
 - `attribution` (empty `commit`/`pr`, `sessionUrl:false`) suppresses AI attribution on commits/PRs.
@@ -154,8 +160,8 @@ Delete `$CFG/CLAUDE.starterkit.md` and its imported parts (`CLAUDE.starterkit-ag
 `$CFG/CLAUDE.md`, restore the `settings.json.bak` you backed up, and delete the hook scripts from
 `$CFG/hooks/`. If you enabled the worklog add-on, also delete `$CFG/CLAUDE.starterkit-worklog.md` and
 its `@./CLAUDE.starterkit-worklog.md` line. If you enabled project memory, its `project-memory.py`
-entry goes with the rest of the hooks; the links it made and each repo's `.claude/memory/` stay, so
-move a repo's memories back before deleting its link.
+entries go with the rest of the hooks; the links it made and each project's `.claude/memory/` stay,
+so move a project's memories back before deleting its link.
 
 ## What each piece does
 

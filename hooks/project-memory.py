@@ -1,30 +1,39 @@
 #!/usr/bin/env python3
-"""SessionStart hook: keep a git repository's auto memory inside the repository.
+"""SessionStart + PreToolUse (Write|Edit) hook: keep a project's auto memory inside the project.
 
 Claude Code keeps auto memory in <config dir>/projects/<project>/memory/, where <project> is derived
-from the path the repository was opened at. The same repository opened at two paths (an sshfs mount
-and the machine it lives on, say) gets two unrelated memories, and `autoMemoryDirectory` accepts only
-an absolute path, so a setting cannot say "inside this repo".
+from the path the project was opened at. The same project opened at two paths (an sshfs mount and
+the machine it lives on, say) gets two unrelated memories, and `autoMemoryDirectory` accepts only an
+absolute path, so a setting cannot say "inside this project".
 
-This hook links that default directory to <repo>/.claude/memory/ (a symlink, or a directory junction
-on Windows), creating the target and adding it to the repository's .git/info/exclude. Claude Code
-resolves the memory directory after SessionStart hooks run, so the link is in place for the session
-that creates it. Every path the repository is opened from gets its own link to the one directory.
+This hook links that default directory to <project>/.claude/memory/ (a symlink, or a directory
+junction on Windows). Every path the project is opened from gets its own link to the one directory.
+The project's memory directory is created only when the first memory is saved:
+- SessionStart links the default directory when <project>/.claude/memory/ already exists, so the
+  session reads it. Claude Code resolves the memory directory after SessionStart hooks run. When the
+  default directory already holds files (saved before the link existed, or written by a Bash
+  command), they are moved into the project and the directory is linked.
+- PreToolUse on a Write or Edit into the default directory creates <project>/.claude/memory/, moves
+  anything already there into it and links the default directory before the write runs, so the first
+  memory lands in the project.
+In a git repository the target is also added to the repository's .git/info/exclude.
 
-<project> is resolved the way Claude Code resolves it: the nearest directory above the working
-directory holding a .git entry; for a linked worktree, the main checkout it belongs to; every
-character other than an ASCII letter or digit replaced by "-", and a name longer than 200 characters
-cut to 200 with a hash of the full path appended.
+<project> is resolved the way Claude Code resolves it, from the session's project directory: the
+nearest directory above it holding a .git entry (a linked worktree maps to its main checkout), or the
+project directory itself outside a git repository; every character other than an ASCII letter or
+digit is replaced by "-", and a name longer than 200 characters is cut to 200 with a hash of the full
+path appended.
 
-The hook changes nothing outside a git repository, when auto memory is pointed elsewhere
-(autoMemoryDirectory, CLAUDE_CODE_PROJECT_DIR_NAME, CLAUDE_COWORK_MEMORY_PATH_OVERRIDE), or when the
-default directory already holds memories or points somewhere else: it reports those two cases to the
-user and leaves them for the user to move. It prints nothing on success, because SessionStart stdout
-becomes session context, and only a JSON systemMessage when there is something to tell the user.
+The hook changes nothing when auto memory is pointed elsewhere (autoMemoryDirectory,
+CLAUDE_CODE_REMOTE_MEMORY_DIR, CLAUDE_CODE_PROJECT_DIR_NAME, CLAUDE_COWORK_MEMORY_PATH_OVERRIDE) or
+when the default directory is already a link: a link that points somewhere else was made on purpose.
+It prints nothing unless it linked something or could not, and then only a JSON systemMessage for the
+user (SessionStart stdout would otherwise become session context).
 """
 import json
 import os
 import re
+import shutil
 import sys
 
 MAX_NAME = 200
@@ -143,8 +152,9 @@ def memory_dir_setting(root):
 
 def redirected():
     """Why auto memory is not in the default per-project directory, or None when it is."""
-    if os.environ.get("CLAUDE_COWORK_MEMORY_PATH_OVERRIDE"):
-        return "CLAUDE_COWORK_MEMORY_PATH_OVERRIDE"
+    for var in ("CLAUDE_COWORK_MEMORY_PATH_OVERRIDE", "CLAUDE_CODE_REMOTE_MEMORY_DIR"):
+        if os.environ.get(var):
+            return var
     pinned = os.environ.get("CLAUDE_CODE_PROJECT_DIR_NAME", "")
     if os.environ.get("CLAUDE_CONFIG_DIR") and re.fullmatch(r"[A-Za-z0-9_-]{1,64}", pinned):
         return "CLAUDE_CODE_PROJECT_DIR_NAME"
@@ -171,16 +181,15 @@ def ensure_excluded(root):
         f.write(EXCLUDE_LINE + "\n")
 
 
-def link_target(link):
-    """Where link points, or None when it is not a symlink or junction."""
+def is_link(p):
+    """Whether p is a symlink or a directory junction."""
+    if os.path.islink(p):
+        return True
     try:
-        return os.readlink(link)
-    except (OSError, ValueError):
-        return None
-
-
-def same_dir(a, b):
-    return os.path.normcase(os.path.realpath(a)) == os.path.normcase(os.path.realpath(b))
+        os.readlink(p)
+        return True
+    except (OSError, ValueError, AttributeError):
+        return False
 
 
 def make_link(target, link):
@@ -192,42 +201,80 @@ def make_link(target, link):
         os.symlink(target, link)
 
 
+def norm(p):
+    return os.path.normcase(os.path.abspath(os.path.expanduser(p)))
+
+
+def locate(data):
+    """(project root, whether it is a git repository), or None when the hook should stand aside."""
+    start = os.environ.get("CLAUDE_PROJECT_DIR") or data.get("cwd") or os.getcwd()
+    start = os.path.abspath(start)
+    if redirected():
+        return None
+    root = git_root(start)
+    is_git = root is not None
+    root = canonical_root(root) if is_git else start
+    if os.path.dirname(root) == root or memory_dir_setting(root):
+        return None
+    return root, is_git
+
+
+def settle(link, target, create):
+    """Link the default memory directory to the project's; returns a message for the user or None.
+
+    Files already in the default directory are moved into the project first. With create unset, a
+    project without a memory directory and an empty default directory are left as they are."""
+    if is_link(link):
+        if not os.path.isdir(link):
+            return f"project-memory: {link} is a broken link, so auto memory cannot be saved there."
+        return None
+    if os.path.lexists(link) and not os.path.isdir(link):
+        return f"project-memory: {link} is a file, so it was not linked to {target}."
+    held = sorted(os.listdir(link)) if os.path.isdir(link) else []
+    if not held and not create and not os.path.isdir(target):
+        return None
+    if os.path.lexists(target) and not os.path.isdir(target):
+        return f"project-memory: {target} is a file, so auto memory stays in {link}."
+    clashes = [n for n in held if os.path.lexists(os.path.join(target, n))]
+    if clashes:
+        return (f"project-memory: {link} and {target} both hold {', '.join(clashes)}, so auto memory "
+                f"stays in {link}. Merge them into {target} and delete {link}; the next session links it.")
+    os.makedirs(target, exist_ok=True)
+    for n in held:
+        shutil.move(os.path.join(link, n), os.path.join(target, n))
+    if os.path.isdir(link):
+        os.rmdir(link)
+    os.makedirs(os.path.dirname(link), exist_ok=True)
+    make_link(target, link)
+    moved = f" ({len(held)} file{'s' if len(held) != 1 else ''} moved there)" if held else ""
+    return f"project-memory: auto memory for this project now lives in {target}{moved}"
+
+
 def main():
     try:
         data = json.load(sys.stdin)
     except ValueError:
         data = {}
-    cwd = data.get("cwd") or os.getcwd()
-    root = git_root(cwd)
-    if root is None or redirected():
+    event = data.get("hook_event_name") or "SessionStart"
+    found = locate(data)
+    if found is None:
         return None
-    root = canonical_root(root)
-    if memory_dir_setting(root):
-        return None
-
-    base = os.environ.get("CLAUDE_CODE_REMOTE_MEMORY_DIR") or config_dir()
-    link = os.path.join(base, "projects", project_name(root), "memory")
+    root, is_git = found
+    link = os.path.join(config_dir(), "projects", project_name(root), "memory")
     target = os.path.join(root, ".claude", "memory")
 
-    os.makedirs(target, exist_ok=True)
-    ensure_excluded(root)
-
-    pointed = link_target(link)
-    if pointed is not None:
-        if same_dir(link, target):
+    if event == "PreToolUse":
+        path = (data.get("tool_input") or {}).get("file_path") or ""
+        if not path or not norm(path).startswith(norm(link) + os.sep) or is_link(link):
             return None
-        return (f"project-memory: {link} links to {pointed}, not to {target}. "
-                "Auto memory for this repo stays there until that link is removed.")
-    if os.path.isdir(link):
-        if os.listdir(link):
-            return (f"project-memory: {link} already holds memories, so it was not linked to {target}. "
-                    "Move its files into the repo's .claude/memory/ and delete it; the next session links it.")
-        os.rmdir(link)
-    elif os.path.lexists(link):
-        return f"project-memory: {link} is a file, so it was not linked to {target}."
-    os.makedirs(os.path.dirname(link), exist_ok=True)
-    make_link(target, link)
-    return f"project-memory: auto memory for this repo now lives in {target}"
+        create = True
+    else:
+        create = False
+
+    msg = settle(link, target, create)
+    if is_git and is_link(link) and os.path.isdir(target):
+        ensure_excluded(root)
+    return msg
 
 
 if __name__ == "__main__":

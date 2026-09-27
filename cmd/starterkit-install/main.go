@@ -39,8 +39,8 @@ The worklog task-log add-on is offered by a prompt that defaults to yes.
   --with-worklog      install it without prompting
   (env STARTERKIT_WORKLOG=0 skips it, =1 installs it; non-interactive runs default to install)
 
-The project-memory add-on keeps each git repo's auto memory in <repo>/.claude/memory/ (excluded
-from git), so every path you open the repo from shares it. Offered by a prompt that defaults to no.
+The project-memory add-on keeps each project's auto memory in <project>/.claude/memory/ (excluded
+from git in a repo), so every path you open the project from shares it. Offered by a prompt that defaults to no.
   --with-project-memory   install it without prompting
   --no-project-memory     skip it (no prompt)
   (env STARTERKIT_PROJECT_MEMORY=1 installs it, =0 skips it; non-interactive runs default to skip)
@@ -268,8 +268,8 @@ func decide(opt options, plat plugins.Platform, interactive bool, stdout io.Writ
 	}
 	if opt.projectMemory == nil {
 		fields = append(fields, huh.NewConfirm().
-			Title("Keep each git repo's auto memory inside the repo?").
-			Description("Links Claude Code's per-path memory directory to <repo>/.claude/memory/ (excluded from git), so every path you open the repo from shares one memory.").
+			Title("Keep each project's auto memory inside the project?").
+			Description("Links Claude Code's per-path memory directory to <project>/.claude/memory/ (excluded from git in a repo), so every path you open the project from shares one memory.").
 			Affirmative("Yes").Negative("No").
 			Value(&ch.projectMemory))
 	}
