@@ -37,7 +37,7 @@ else `~/.claude`.
   The installer offers it via a prompt that **defaults to yes** (press Enter to install). Opt out with
   `--no-worklog` / `-NoWorklog`, or `STARTERKIT_WORKLOG=0`; non-interactive runs install it by default.
   Skip it and the base ruleset is unaffected.
-- **12 hooks** → `~/.claude/hooks/`, wired into `settings.json`:
+- **13 hooks** → `~/.claude/hooks/`, wired into `settings.json`:
   - `correction-primer.py` (UserPromptSubmit) — nudges you when a message reads as a
     correction/question, not a start-imperative.
   - `commit-style-primer.py` (UserPromptSubmit) — injects a repo's `.git/COMMIT_STYLE.md` when you
@@ -65,6 +65,9 @@ else `~/.claude`.
   - `compact-resume.py` (SessionStart, matcher `compact`) — tells the post-compaction agent that the
     summary's Established facts are trusted as verified (no re-checking), and where the transcript
     copy is, as an optional reference that is not loaded.
+  - `compact-continue.py` (PostCompact, matcher `manual`, `asyncRewake`) — after a manual `/compact`,
+    wakes Claude to carry on from the summary's Next step if it is authorised, or to say in one line
+    what it is waiting on. Auto-compaction continues by itself, so it is left alone.
 - **`review-rules.md`** (opt-in, not enabled by default) — installed to `~/.claude/review-rules.md`
   but imported nowhere. It defines the review before done: one review by an agent that didn't do
   the work, fixes re-reviewed once, then anything open goes to the user; paperwork demands are not

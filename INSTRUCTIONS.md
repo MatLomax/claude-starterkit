@@ -95,6 +95,9 @@ commands.
     ],
     "SessionStart": [
       { "matcher": "compact", "hooks": [ { "type": "command", "command": "python3 $HOME/.claude/hooks/compact-resume.py" } ] }
+    ],
+    "PostCompact": [
+      { "matcher": "manual", "hooks": [ { "type": "command", "command": "python3 $HOME/.claude/hooks/compact-continue.py", "asyncRewake": true } ] }
     ]
   }
 }

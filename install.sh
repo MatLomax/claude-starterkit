@@ -133,6 +133,9 @@ WANT = {
     "SessionStart": [
         ("compact", "compact-resume.py"),
     ],
+    "PostCompact": [
+        ("manual", "compact-continue.py", {"asyncRewake": True}),
+    ],
 }
 
 def have(groups):
@@ -142,11 +145,11 @@ h = cfg.setdefault("hooks", {})
 for event, wants in WANT.items():
     groups = h.setdefault(event, [])
     present = have(groups)
-    for matcher, script in wants:
+    for matcher, script, *extra in wants:
         cmd = f"python3 {hooks}/{script}"
         if cmd in present:
             continue
-        entry = {"hooks": [{"type": "command", "command": cmd}]}
+        entry = {"hooks": [{"type": "command", "command": cmd, **(extra[0] if extra else {})}]}
         if matcher:
             entry["matcher"] = matcher
         groups.append(entry)

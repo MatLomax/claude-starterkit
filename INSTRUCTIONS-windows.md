@@ -114,6 +114,9 @@ don't replace what's there).
     ],
     "SessionStart": [
       { "matcher": "compact", "hooks": [ { "type": "command", "command": "py -3 C:/Users/YOU/.claude/hooks/compact-resume.py" } ] }
+    ],
+    "PostCompact": [
+      { "matcher": "manual", "hooks": [ { "type": "command", "command": "py -3 C:/Users/YOU/.claude/hooks/compact-continue.py", "asyncRewake": true } ] }
     ]
   }
 }
