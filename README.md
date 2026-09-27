@@ -56,9 +56,11 @@ multiselect, **none ticked by default**, and installs the ticked ones after the 
 installer, and re-running it updates the plugin.
 
 - **[ripwire](https://github.com/redhat-et/ripwire)** — deterministic codebase maps for coding agents
-  (a CLI plus agent skills). Installed with ripwire's documented quick install
-  (`RIPWIRE_REPO=redhat-et/ripwire bash -c "$(curl -fsSL …/scripts/install.sh)"`), which verifies its
-  release, installs the binary to `~/.local/bin` and activates its skills. Once it installs, the
+  (a CLI plus agent skills). Installed with ripwire's documented quick install: its official
+  `scripts/install.sh` is fetched with `curl -fsSL` and run with `RIPWIRE_REPO=redhat-et/ripwire`
+  (a failed or empty download fails the install rather than running nothing), and it verifies its
+  release, installs the binary to `~/.local/bin` and activates its skills. The install counts as
+  done only once ripwire is actually found afterwards. Once it installs, the
   installer offers to register ripwire's Claude Code hooks (`<prefix>/share/ripwire/skills/install.sh
   --hook`: a session-start primer, a prompt router and a tool-call recorder that never blocks),
   defaulting to yes; if `jq` (which those hooks need) is missing, it says so and defaults to no.

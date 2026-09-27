@@ -281,7 +281,18 @@ func installPlugins(ids []string, opt options, plat plugins.Platform, interactiv
 			failed = true
 			continue
 		}
-		fmt.Fprintf(stdout, "%s: installed\n", pl.ID)
+		// The installer's exit status is not enough: the plugin must actually be there now.
+		v := pl.Installed(plat)
+		if v == "" {
+			fmt.Fprintf(stderr, "%s: its installer reported success, but %s is not installed\n", pl.ID, pl.ID)
+			failed = true
+			continue
+		}
+		if v == "installed" {
+			fmt.Fprintf(stdout, "%s: installed\n", pl.ID)
+		} else {
+			fmt.Fprintf(stdout, "%s: installed (%s)\n", pl.ID, v)
+		}
 
 		for _, fu := range pl.FollowUps {
 			ok, why := fu.Available(plat)

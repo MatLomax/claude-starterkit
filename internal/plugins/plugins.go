@@ -51,7 +51,10 @@ type Platform struct {
 // Available reports whether the plugin has an official installer on this platform.
 func (pl Plugin) Available(p Platform) bool { return pl.Installer(p) != "" }
 
-const ripwireRepo = "redhat-et/ripwire"
+const (
+	ripwireRepo       = "redhat-et/ripwire"
+	ripwireInstallURL = "https://raw.githubusercontent.com/" + ripwireRepo + "/main/scripts/install.sh"
+)
 
 // Recommended is every recommended plugin, in the order they are offered.
 var Recommended = []Plugin{
@@ -60,14 +63,18 @@ var Recommended = []Plugin{
 		Description: "deterministic codebase maps for coding agents (CLI + skills)",
 		Homepage:    "https://github.com/" + ripwireRepo,
 		Manual:      "https://github.com/" + ripwireRepo + "/releases",
-		// ripwire's documented quick install (INSTALL.md). It has no Windows installer: Windows
-		// gets a release zip and a Git Bash skills script, and the installer script recognises
-		// only Darwin and Linux.
+		// ripwire's documented quick install (INSTALL.md), with the script fetched first so a failed
+		// or empty download fails the install instead of running an empty script. It has no Windows
+		// installer: Windows gets a release zip and a Git Bash skills script, and the installer
+		// script recognises only Darwin and Linux.
 		Installer: func(p Platform) string {
 			if p.Windows {
 				return ""
 			}
-			return `RIPWIRE_REPO=` + ripwireRepo + ` bash -c "$(curl -fsSL https://raw.githubusercontent.com/` + ripwireRepo + `/main/scripts/install.sh)"`
+			return `url=` + ripwireInstallURL + `
+script=$(curl -fsSL "$url") || { echo "ripwire: could not download its installer from $url" >&2; exit 1; }
+if [ -z "$script" ]; then echo "ripwire: its installer at $url is empty" >&2; exit 1; fi
+RIPWIRE_REPO=` + ripwireRepo + ` bash -c "$script"`
 		},
 		// Without a terminal ripwire's installer aborts unless its confirmation is pre-answered.
 		NonInteractiveEnv: []string{"RIPWIRE_INSTALL_YES=1"},
