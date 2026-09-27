@@ -116,10 +116,51 @@ jobs:
           & ([scriptblock]::Create((irm "$env:STARTERKIT_BASE_URL/install.ps1"))) -Plugins ripwire
           if ($LASTEXITCODE -eq 0) { throw "-Plugins ripwire must fail on Windows" }
           if (-not (Test-Path (Join-Path $env:CLAUDE_CONFIG_DIR "settings.json"))) { throw "core install skipped" }
+          # Options match like PowerShell parameters: any case, and the -Name:value form.
+          $env:CLAUDE_CONFIG_DIR = Join-Path $env:RUNNER_TEMP "claude5"
+          & ([scriptblock]::Create((irm "$env:STARTERKIT_BASE_URL/install.ps1"))) -noworklog:$true -plugins:ripwire
+          if ($LASTEXITCODE -eq 0) { throw "-plugins:ripwire must fail on Windows" }
+          if (-not (Test-Path (Join-Path $env:CLAUDE_CONFIG_DIR "settings.json"))) { throw "core install skipped" }
+          if (Test-Path (Join-Path $env:CLAUDE_CONFIG_DIR "CLAUDE.starterkit-worklog.md")) { throw "-noworklog:`$true ignored" }
+          # An unknown option is an error before anything is downloaded or installed.
+          $env:CLAUDE_CONFIG_DIR = Join-Path $env:RUNNER_TEMP "claude6"
+          $failed = $false
+          try { & ([scriptblock]::Create((irm "$env:STARTERKIT_BASE_URL/install.ps1"))) -NoWorklg } catch { $failed = $_.Exception.Message -match "unknown option '-NoWorklg'" }
+          if (-not $failed) { throw "an unknown option was not rejected" }
+          if (Test-Path $env:CLAUDE_CONFIG_DIR) { throw "installed despite an unknown option" }
+          # irm | iex inside the user's own script or function: their arguments are not installer
+          # options, and the installer does not exit their script.
+          $env:CLAUDE_CONFIG_DIR = Join-Path $env:RUNNER_TEMP "claude7"
+          $setup = Join-Path $env:RUNNER_TEMP "setup.ps1"
+          $marker = Join-Path $env:RUNNER_TEMP "setup-continued"
+          Set-Content $setup 'irm "$env:STARTERKIT_BASE_URL/install.ps1" | iex; if ($LASTEXITCODE -ne 0) { exit 7 }; Set-Content $env:SETUP_MARKER "yes"; exit 0'
+          $env:SETUP_MARKER = $marker
+          pwsh -NoProfile -File $setup -Force
+          if ($LASTEXITCODE -ne 0) { throw "irm | iex inside a script run with -Force exited $LASTEXITCODE" }
+          if (-not (Test-Path $marker)) { throw "irm | iex ended the user's script" }
+          if (-not (Test-Path (Join-Path $env:CLAUDE_CONFIG_DIR "CLAUDE.starterkit-worklog.md"))) { throw "default options not applied" }
+          $env:CLAUDE_CONFIG_DIR = Join-Path $env:RUNNER_TEMP "claude8"
+          function Install-Tools { irm "$env:STARTERKIT_BASE_URL/install.ps1" | iex }
+          Install-Tools -NoWorklog
+          if ($LASTEXITCODE -ne 0) { throw "irm | iex inside a function exited $LASTEXITCODE" }
+          if (-not (Test-Path (Join-Path $env:CLAUDE_CONFIG_DIR "CLAUDE.starterkit-worklog.md"))) { throw "the wrapper function's -NoWorklog was applied as an installer option" }
           $global:LASTEXITCODE = 0
           Write-Host "options passed through"
 
-          # irm | iex runs in the caller's session: it must leave no settings or variables behind.
-          $env:CLAUDE_CONFIG_DIR = Join-Path $env:RUNNER_TEMP "claude4"
-          pwsh -NoProfile -Command 'irm "$env:STARTERKIT_BASE_URL/install.ps1" | iex; if ($ErrorActionPreference -ne "Continue") { exit 3 }; if (Test-Path variable:tmp) { exit 4 }; if (Test-Path variable:exe) { exit 5 }; exit $LASTEXITCODE'
-          if ($LASTEXITCODE -ne 0) { throw "irm | iex changed the caller's session (exit $LASTEXITCODE)" }
+          # irm | iex and the scriptblock form run in the caller's session: they must leave no settings
+          # or variables behind, including under Set-StrictMode -Version Latest.
+          $check = '; if ($ErrorActionPreference -ne "Continue") { exit 3 }; foreach ($v in "tmp","exe","argv","asFile","rawArgs","WithWorklog","NoWorklog","Plugins","NoPlugins","PluginHooks") { if (Test-Path "variable:$v") { Write-Host "left behind: $v"; exit 4 } }; exit $LASTEXITCODE'
+          $runs = [ordered]@{
+            "irm | iex" = 'irm "$env:STARTERKIT_BASE_URL/install.ps1" | iex'
+            "scriptblock form" = '& ([scriptblock]::Create((irm "$env:STARTERKIT_BASE_URL/install.ps1"))) -NoWorklog -NoPlugins'
+            "irm | iex under StrictMode" = 'Set-StrictMode -Version Latest; irm "$env:STARTERKIT_BASE_URL/install.ps1" | iex'
+          }
+          $n = 10
+          foreach ($run in $runs.GetEnumerator()) {
+            $env:CLAUDE_CONFIG_DIR = Join-Path $env:RUNNER_TEMP "claude$n"
+            $n++
+            pwsh -NoProfile -Command ($run.Value + $check)
+            if ($LASTEXITCODE -ne 0) { throw "$($run.Key) failed or changed the caller's session (exit $LASTEXITCODE)" }
+            if (-not (Test-Path (Join-Path $env:CLAUDE_CONFIG_DIR "settings.json"))) { throw "$($run.Key) did not install" }
+          }
+          Write-Host "no session leak"
