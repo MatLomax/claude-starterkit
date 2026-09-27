@@ -18,9 +18,13 @@ patterns); text fed to anything else (`git commit -F -`, `cat > file`) is data, 
 mention such as `grep "sleep 60"` is not in command position and passes.
 
 Not covered: a `Monitor` script (a different tool, and its loop costs no tokens), and a sleep
-inside a script file the command runs.
+inside a script file the command runs. The one sanctioned sleeping script is `gh-run-wait.py`, the
+helper the deny message names for waiting on a GitHub Actions run: a bounded wait (at most 5
+minutes) on one unfinished run. Run in the foreground it would be sleep-then-check polling, so it
+is denied unless the call has `run_in_background: true`.
 """
 import json
+import os
 import re
 import sys
 
@@ -43,6 +47,10 @@ CODE_PATTERNS = [
 ]
 SHELL = re.compile(r"(?:^|[\s;&|(/])(?:ba|z|da|k)?sh\b|\b(?:pwsh|powershell)\b", re.IGNORECASE)
 INTERPRETER = re.compile(r"(?:^|[\s;&|(/])(?:python[\d.]*|node|deno|bun|ruby|perl|php)\b")
+RUN_WAIT = re.compile(
+    r"(?:" + CMD_POS + r"|\b(?:python[\d.]*|py)(?:\s+-\S+)*\s+)\s*"
+    r"(?:\"[^\"\n]*|'[^'\n]*|[^\s;&|\"']*)gh-run-wait\.py\b"
+)
 HEREDOC = re.compile(r"(?<!<)<<-?\s*(['\"]?)([A-Za-z_][\w.-]*)\1")
 
 
@@ -87,25 +95,42 @@ def main():
     except Exception:
         sys.exit(0)
 
-    cmd = (data.get("tool_input") or {}).get("command")
-    if not isinstance(cmd, str) or not sleeps(cmd):
+    ti = data.get("tool_input") or {}
+    cmd = ti.get("command")
+    if not isinstance(cmd, str):
+        sys.exit(0)
+    helper = os.path.join(os.path.dirname(os.path.abspath(__file__)), "gh-run-wait.py").replace("\\", "/")
+    if RUN_WAIT.search(split_heredocs(cmd)[0]) and ti.get("run_in_background") is not True:
+        deny(
+            "Blocked: gh-run-wait.py waits up to 5 minutes, so run it with run_in_background: true "
+            "and END YOUR TURN; its exit wakes you. In the foreground it is sleep-then-check polling."
+        )
+    if not sleeps(cmd):
         sys.exit(0)
 
+    deny(
+        "Blocked: this command sleeps. Sleeping to wait on work is polling, and every poll "
+        "re-sends the whole context (past ~5 minutes it re-writes the entire context into the "
+        "cache). To wait on a long job: run it with run_in_background: true, then END YOUR TURN "
+        "or carry on with other work; the completion notification wakes you. This holds in a "
+        f"subagent too. To wait on a GitHub Actions run, run `python3 {helper} <run URL>` "
+        "(`py -3` on Windows) in the background: it returns when the run changes (at most 5 "
+        "minutes), and you run it again while the run is still going. Using it for anything "
+        "but waiting on that run is a disguised delay. For "
+        "other external state with no completion event (a remote queue), use the tool's own "
+        "blocking wait in the background (`kubectl wait`, `docker wait`) or the Monitor tool "
+        "with a script that prints only when the state changes. Never Monitor a job you started "
+        "yourself. A disguised delay (`timeout N tail -f /dev/null`, `read -t`, `ping "
+        "localhost`, a script of your own that sleeps) is a sleep too: do not route around this "
+        "guard, wait the sanctioned way."
+    )
+
+
+def deny(reason):
     print(json.dumps({"hookSpecificOutput": {
         "hookEventName": "PreToolUse",
         "permissionDecision": "deny",
-        "permissionDecisionReason": (
-            "Blocked: this command sleeps. Sleeping to wait on work is polling, and every poll "
-            "re-sends the whole context (past ~5 minutes it re-writes the entire context into the "
-            "cache). To wait on a long job: run it with run_in_background: true, then END YOUR TURN "
-            "or carry on with other work; the completion notification wakes you. This holds in a "
-            "subagent too. For external state with no completion event (CI, a remote queue), use "
-            "the tool's own blocking wait in the background (e.g. `gh run watch <id> "
-            "--exit-status`) or the Monitor tool with a script that prints only when the state "
-            "changes. Never Monitor a job you started yourself. A disguised delay (`timeout N "
-            "tail -f /dev/null`, `read -t`, `ping localhost`) is a sleep too: do not route around "
-            "this guard, wait the sanctioned way."
-        ),
+        "permissionDecisionReason": reason,
     }}))
     sys.exit(0)
 

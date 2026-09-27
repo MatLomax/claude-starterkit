@@ -451,9 +451,14 @@ project's surfaces and suite. A global hook can't see them; state them here, gat
   `Monitor` a job you started yourself; its completion notification is free. **A disguised delay is a
   sleep, and a guard is not a puzzle:** `timeout N tail -f /dev/null`, `read -t N`, `ping localhost`,
   a busy loop, or any other form picked because the sleep-guard does not catch it, is banned exactly as
-  `sleep` is. Waiting on external state that a tool can block on uses that tool's own blocking wait,
-  run in the background (`gh run watch <id> --exit-status`, `kubectl wait`, `docker wait`); only state
-  with no such wait goes to `Monitor`. And a check on external state is itself a command that can hang
+  `sleep` is. Waiting on a GitHub Actions run uses `python3 ~/.claude/hooks/gh-run-wait.py <run URL>`
+  (`py -3` on Windows) in the background: it checks the run with HTTP GETs, returns when the run
+  changes or after at most 5 minutes, and is re-run while the run is still going (the sleep-guard
+  denies it in the foreground).
+  It is the one sanctioned script that sleeps; using it for anything but waiting on that run, or
+  writing another, is a disguised delay. Other external state that a tool can block on uses that tool's
+  own blocking wait, run in the background (`kubectl wait`, `docker wait`); only state with no such
+  wait goes to `Monitor`. And a check on external state is itself a command that can hang
   on the network: run it in the background too. **Tripwire:** you write
   "I'll wait for the notification" and your next call checks on progress — stop and end the turn.
   **Real incident:** a background subagent with a ~700k-token context said exactly that, then ran

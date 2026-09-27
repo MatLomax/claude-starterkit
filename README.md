@@ -103,7 +103,14 @@ does not undo or stop the rest of the install.
   - `sleep-guard.py` (PreToolUse) — blocks a `Bash`/`PowerShell` command that sleeps (`sleep`,
     `Start-Sleep`, inline `time.sleep`/`setTimeout`, and disguised delays such as
     `timeout N tail -f /dev/null`, `read -t N`, `ping localhost`): wait on background work via its
-    completion notification, and on external state via the tool's own blocking wait, not by polling.
+    completion notification, on a GitHub Actions run via `gh-run-wait.py`, and on other external
+    state via the tool's own blocking wait, not by polling.
+  - `gh-run-wait.py` (not a hook: a helper the sleep-guard names) — waits on a GitHub Actions run
+    (`python3 ~/.claude/hooks/gh-run-wait.py <run URL>`, run in the background): checks it with
+    HTTP GETs every 15 seconds and exits when the run's status or conclusion changes or a job
+    finishes, printing each job's state. A bounded wait on one unfinished run: at most 5 minutes,
+    returns at once for a finished run, and the sleep-guard denies it outside the background. Exit 0
+    finished green, 1 finished otherwise, 3 changed and still running, 124 no change in time.
   - `spend-guard.py` (PreToolUse, all tools) — blocks every tool call once spend passes a limit, so
     the model stops and reports: `PROMPT_SPEND_LIMIT` (default `3M` API-price-weighted tokens) for
     the main conversation + subagents since your last message, and `WORKFLOW_SPEND_LIMIT` (default
