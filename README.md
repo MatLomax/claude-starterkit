@@ -59,6 +59,11 @@ else `~/.claude`.
   - `tie-break-guard.py` (Stop) — blocks turn-end if the reply leaves record-keeping undone:
     asks permission to log a gap, claims a record with no write behind it, or promises one and
     ends the turn.
+- **`review-rules.md`** (opt-in, not enabled by default) — installed to `~/.claude/review-rules.md`
+  but imported nowhere. It defines the review before done: one review by an agent that didn't do
+  the work, fixes re-reviewed once, then anything open goes to the user; paperwork demands are not
+  findings. It adds tokens to every session that loads it, so enable it only where wanted, with
+  `@~/.claude/review-rules.md` in a machine's `~/.claude/CLAUDE.md` or a project's `CLAUDE.md`.
 - **`attribution` setting** — sets `{commit:"", pr:"", sessionUrl:false}` (no AI attribution on
   commits/PRs), only if you haven't already configured it.
 - **statusline** → `~/.claude/statusline-command.sh` (Unix) or `statusline-command.ps1` (Windows),

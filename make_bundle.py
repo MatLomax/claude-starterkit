@@ -29,6 +29,7 @@ TOP_FILES = [
     "INSTRUCTIONS.md", "INSTRUCTIONS-windows.md",
     "install.sh", "install.ps1",
     "statusline-command.sh", "statusline-command.ps1",
+    "review-rules.md",
 ]
 HOOK_DIR = "hooks"
 

@@ -98,6 +98,11 @@ Write-Host "installed $hookCount hook scripts"
 # 2b. statusline script (native PowerShell port — no bash/jq needed on Windows).
 Copy-Item (Join-Path $Here "statusline-command.ps1") (Join-Path $ClaudeDir "statusline-command.ps1") -Force
 Write-Host "installed statusline-command.ps1"
+
+# 2c. Opt-in review rules. Installed, never imported: they apply only where a CLAUDE.md
+#     imports @~/.claude/review-rules.md (they cost tokens every session, so off by default).
+Copy-Item (Join-Path $Here "review-rules.md") (Join-Path $ClaudeDir "review-rules.md") -Force
+Write-Host "installed review-rules.md (opt-in: import @~/.claude/review-rules.md to enable)"
 $slScriptPath = (Join-Path $ClaudeDir "statusline-command.ps1").Replace("\", "/")
 $psExe = if (Get-Command pwsh -ErrorAction SilentlyContinue) { "pwsh" } else { "powershell" }
 $SlCmd = "$psExe -NoProfile -File `"$slScriptPath`""

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.4] - 2026-09-27
+
+### Added
+
+- `review-rules.md` — opt-in review-before-done rules, installed to `~/.claude/review-rules.md` by `install.sh` / `install.ps1` and bundled by `make_bundle.py`, but imported nowhere: `CLAUDE.starterkit.md` does not reference it, so it is off by default and costs no tokens until a machine's or project's `CLAUDE.md` imports `@~/.claude/review-rules.md`. One review by an agent that did not do the work, run after the gates are green; real defects fixed and the fixes re-reviewed once, then anything open goes to the user; demands for more proof, evidence trails or attribution rigour are not findings; the outcome is noted briefly on the task. The repo copy is the single source for machines that previously each kept their own. Listed in `README.md`.
+
 ## [0.5.3] - 2026-09-27
 
 ### Changed

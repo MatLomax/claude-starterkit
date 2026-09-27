@@ -89,6 +89,11 @@ cp "$HERE/statusline-command.sh" "$CLAUDE_DIR/statusline-command.sh"
 chmod +x "$CLAUDE_DIR/statusline-command.sh"
 echo "installed statusline-command.sh"
 
+# 2c. Opt-in review rules. Installed, never imported: they apply only where a CLAUDE.md
+#     imports @~/.claude/review-rules.md (they cost tokens every session, so off by default).
+cp "$HERE/review-rules.md" "$CLAUDE_DIR/review-rules.md"
+echo "installed review-rules.md (opt-in: import @~/.claude/review-rules.md to enable)"
+
 # 3. settings.json — idempotent merge (backs up; never clobbers other keys or existing hooks).
 SL_CMD="bash $CLAUDE_DIR/statusline-command.sh"
 python3 - "$CLAUDE_DIR" "$SL_CMD" "$WANT_WORKLOG" <<'PY'
