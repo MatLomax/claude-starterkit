@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.5] - 2026-09-29
+
 ### Changed
 
 - **Scratch has an owner.** `CLAUDE.starterkit.md` §10 gives each session or agent its own `.tmp/<slug>/` subfolder, which is the only scratch it deletes: never `.tmp/` itself, which every session and agent in the project shares. An orchestrator names a sub-agent's subfolder in its brief instead of handing it `.tmp/` to clean up, after review agents told to delete their scratch under `.tmp/` removed the whole folder, including another session's files.
