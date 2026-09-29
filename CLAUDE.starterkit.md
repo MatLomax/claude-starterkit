@@ -438,6 +438,9 @@ project's surfaces and suite. A global hook can't see them; state them here, gat
 - **Scratch stays project-local.** Project artifacts — renders, reports, intermediate output — go in a
   project-local `.tmp/` (gitignored), never committed and never dumped loose in system `/tmp`. (A
   harness-provided scratchpad, when one is given, is the exception for ephemeral session files.)
+  Each session or agent works in its own subfolder, `.tmp/<slug>/`, and deletes only that folder,
+  never `.tmp/` itself or anything else in it. When briefing a sub-agent, name its subfolder in the
+  prompt; never hand it `.tmp/` as a place to clean up.
 - **Long shell commands go to the BACKGROUND from the START — never sit through the 120s foreground
   cap.** The harness force-backgrounds any foreground command at 120s: the first two minutes are burned
   and the inline output is lost, so you re-run it anyway. If a command could plausibly exceed ~90s — a DB
