@@ -535,3 +535,78 @@ func TestCommandsRunThroughShWithAnAwkwardPath(t *testing.T) {
 	}
 	run("cat "+strings.TrimPrefix(sl, "bash "), "statusline-command.sh")
 }
+
+// A reinstall brings an existing starterkit hook to the table's matcher: in place when the group
+// holds only that hook, and by moving it to its own group when it shares one with a user's hook.
+func TestSettingsUpdatesChangedMatcher(t *testing.T) {
+	o := opts(t, false)
+	o.ProjectMemory = true
+	cmd := o.hookCommand("project-memory.py")
+	var want string
+	for _, ev := range Hooks {
+		if ev.event != "PreToolUse" {
+			continue
+		}
+		for _, h := range ev.hooks {
+			if h.script == "project-memory.py" {
+				want = h.matcher
+			}
+		}
+	}
+	entry := func(matcher string, cmds ...string) *ojson.Object {
+		var list []any
+		for _, c := range cmds {
+			x := ojson.NewObject()
+			x.Set("type", "command")
+			x.Set("command", c)
+			list = append(list, x)
+		}
+		e := ojson.NewObject()
+		e.Set("matcher", matcher)
+		e.Set("hooks", list)
+		return e
+	}
+	for _, shared := range []bool{false, true} {
+		cfg := ojson.NewObject()
+		hooks := ojson.NewObject()
+		if shared {
+			hooks.Set("PreToolUse", []any{entry("Write|Edit", "user-hook", cmd)})
+		} else {
+			hooks.Set("PreToolUse", []any{entry("Write|Edit", cmd)})
+		}
+		cfg.Set("hooks", hooks)
+		out, _ := ojson.Encode(cfg)
+		if err := os.WriteFile(filepath.Join(o.ClaudeDir, "settings.json"), out, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := Settings(o); err != nil {
+			t.Fatal(err)
+		}
+		hv, _ := settingsOf(t, o).Get("hooks")
+		groups, _ := hv.(*ojson.Object).Get("PreToolUse")
+		found, userMatcher := 0, ""
+		for _, g := range groups.([]any) {
+			gobj := g.(*ojson.Object)
+			m, _ := gobj.Get("matcher")
+			list, _ := gobj.Get("hooks")
+			for _, x := range list.([]any) {
+				c, _ := x.(*ojson.Object).Get("command")
+				if c == cmd {
+					found++
+					if m != want {
+						t.Errorf("shared=%v: project-memory matcher = %v, want %q", shared, m, want)
+					}
+				}
+				if c == "user-hook" {
+					userMatcher, _ = m.(string)
+				}
+			}
+		}
+		if found != 1 {
+			t.Errorf("shared=%v: %d project-memory PreToolUse entries, want 1", shared, found)
+		}
+		if shared && userMatcher != "Write|Edit" {
+			t.Errorf("user hook's matcher changed to %q", userMatcher)
+		}
+	}
+}

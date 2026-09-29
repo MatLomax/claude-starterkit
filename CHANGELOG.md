@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **A reinstall now applies a hook's changed matcher.** The installer skipped any hook whose command was already registered, so upgrading from 0.7.0 kept project-memory's PreToolUse matcher at `Write|Edit` and the 0.7.1 shell-command guard never ran. An existing registration is now brought to the hook table's matcher: in place when its group holds only that hook, or by moving it to a group of its own when it shares one with other hooks, whose matcher stays as it was.
+
 ## [0.7.1] - 2026-09-29
 
 ### Fixed

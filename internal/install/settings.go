@@ -208,6 +208,7 @@ func mergeHooks(o Options, cfg *ojson.Object) error {
 			if legacy := o.legacyHookCommand(h.script); legacy != cmd {
 				groups = replaceCommand(groups, legacy, cmd)
 			}
+			groups = syncMatcher(groups, cmd, h.matcher)
 			if commands(groups)[cmd] {
 				continue
 			}
@@ -227,6 +228,54 @@ func mergeHooks(o Options, cfg *ojson.Object) error {
 		hooks.Set(ev.event, groups)
 	}
 	return nil
+}
+
+// syncMatcher brings each registration of cmd to the hook table's matcher, so a reinstall applies
+// a matcher the table has changed. A group holding only cmd has its matcher set (or removed, for "");
+// where cmd shares a group whose matcher differs, cmd is taken out of that group, so the other hooks
+// keep their matcher and mergeHooks adds cmd back in a group of its own.
+func syncMatcher(groups []any, cmd, matcher string) []any {
+	out := groups[:0:0]
+	for _, g := range groups {
+		gobj, ok := g.(*ojson.Object)
+		if !ok {
+			out = append(out, g)
+			continue
+		}
+		hv, _ := gobj.Get("hooks")
+		list, ok := hv.([]any)
+		if !ok {
+			out = append(out, g)
+			continue
+		}
+		var mine, others []any
+		for _, x := range list {
+			if xobj, ok := x.(*ojson.Object); ok {
+				if c, _ := xobj.Get("command"); c == cmd {
+					mine = append(mine, x)
+					continue
+				}
+			}
+			others = append(others, x)
+		}
+		current, _ := gobj.Get("matcher")
+		cur, _ := current.(string)
+		switch {
+		case len(mine) == 0 || cur == matcher:
+			out = append(out, g)
+		case len(others) == 0:
+			if matcher == "" {
+				gobj.Delete("matcher")
+			} else {
+				gobj.Set("matcher", matcher)
+			}
+			out = append(out, g)
+		default:
+			gobj.Set("hooks", others)
+			out = append(out, g)
+		}
+	}
+	return out
 }
 
 // replaceCommand rewrites each hook entry whose command is old to run cmd instead, in place, so a
