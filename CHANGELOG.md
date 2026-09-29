@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-09-29
+
 ### Fixed
 
 - **Project memory with a stray `.git`:** Claude Code takes any `.git` entry as a repository root, even one git itself rejects, so a stray `.git` (a folder holding only `info/exclude`, as an editor hook left in `~/Projects`) made every folder under it without its own repository share one memory, and the hook linked that shared memory into the stray root. The hook now checks the root as git does (a valid `HEAD`, `objects/` and `refs/`, following a `.git` file's `gitdir`) and also flags a repository in the home directory. For either it links nothing, warns at session start, and denies a `Write` or `Edit` into that memory with a reason telling the assistant to tell the user, so nothing is saved where it would be stranded once the `.git` is removed. A `.git` that is a directory junction no longer counts as a root, as in Claude Code.
