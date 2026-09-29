@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-09-29
+
 ### Added
 
 - `hooks/notification-guard.py` (MessageDisplay, PreToolUse, PostToolUse, Stop and UserPromptSubmit, no matchers) — a background job's completion only ever arrives as input in a new turn. When the assistant's own text holds something shaped like one (a `<system-reminder>` or `<task-notification>` tag, "Background task X completed with exit code N", "[SYSTEM NOTIFICATION"), the hook's MessageDisplay handler flags it as the text streams (keeping each message's text so far in `<config dir>/notification-guard/<session>.json`, so quoting that spans display batches is honoured) and marks the line on screen. PostToolUse then tells the assistant after its next tool call, before it acts on the result; PreToolUse denies a call made while the flag is set; Stop blocks a reply that ends the turn on a flagged or notice-bearing text (once); each report clears the flag, and a typed prompt clears it too. Nothing can stop the one call right after the text in an interactive session: measured on Claude Code 2.1.283, PreToolUse fires 3 to 7 ms before MessageDisplay receives the text, and the text is not in the transcript until after the call. Quoted and code text is ignored. `CLAUDE.starterkit.md` §10 states the rule beside the ban on polling. Wired by the installer and listed in the `INSTRUCTIONS.md` / `INSTRUCTIONS-windows.md` settings templates and the `README.md` hook list.
