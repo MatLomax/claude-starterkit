@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **No commit status for gitignored files.** `CLAUDE.starterkit.md` §0 exempts a file the repo ignores from the commit-status report: it is never meant to be committed, so saying it is not is noise. Status is reported for tracked or trackable files only, checked with `git check-ignore`, and a unit of work that touched only ignored files has none to report.
 - **No `rm` on a variable-built path.** `CLAUDE.starterkit-git.md` §8 bans `rm` on a path built from a variable or a command substitution (`rm -rf "$DIR/"`, `rm $(...)`, `xargs rm`), where one empty or bad expansion widens the delete to `/`, `~` or the whole tree; paths are written out literally. Removing a directory by literal path stays fine inside the project or where the user sanctioned it.
 
 ## [0.7.2] - 2026-09-29

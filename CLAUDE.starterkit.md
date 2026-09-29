@@ -16,6 +16,11 @@ messages exactly as it does to yours.
   clearly whether it has been committed — some projects auto-commit, some don't, and the user must
   never have to guess or discover uncommitted work later. A plain "this is not committed" (or "this
   is committed as `<sha>`") is required status output, not rule-narration, so it is always surfaced.
+  - **Gitignored files are exempt.** Never report the commit status of a file the repo ignores (a
+    gitignored doc, scratch output, a build artefact): it is never meant to be committed, so saying
+    it isn't is noise. Report commit status only for tracked or trackable files, and check with
+    `git check-ignore` before assuming either way. When a unit of work touched only ignored files,
+    there is no commit status to report.
 
 ## 1. Working standard — the complete solution, within the named scope
 
