@@ -58,6 +58,7 @@ legitimately needs to (record a decision, add an audit row, fix a bug), *alongsi
   *(Enforced by git-guard: whole-tree `reset --hard` / `checkout .` / `restore .` / `clean -f` /
   create-form `stash` are denied; path-scoped forms pass.)*
 - **Clean up only your own scratch.**
+- **Never use a dangerous `rm`.** No `rm -r` / `rm -rf`, no glob delete (`rm *.log`, `rm -f dir/*`), and no `rm` on a path built from a variable or a command substitution (`rm -rf "$DIR/"`, `rm $(...)`): one empty variable or mis-expanded glob deletes another session's work or the whole tree, and nothing brings it back. Remove only a single file you created, by its literal path, or leave it; reuse or overwrite your own scratch rather than deleting it. A directory or set of files that genuinely has to go is listed for the user to remove, never deleted by you. Collapsing your own worktree with `git worktree remove` / `git branch -d` (§9) is not an `rm`.
 
 ## 9. Worktrees — merged, then fully collapsed; never left sitting
 

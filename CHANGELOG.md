@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **No dangerous `rm`.** `CLAUDE.starterkit-git.md` §8 bans `rm -r` / `rm -rf`, glob deletes and `rm` on a variable- or substitution-built path: only a single file the assistant created may be removed, by its literal path, and anything larger is listed for the user to remove.
+
 ## [0.7.2] - 2026-09-29
 
 ### Fixed
