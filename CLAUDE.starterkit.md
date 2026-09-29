@@ -427,6 +427,9 @@ project's surfaces and suite. A global hook can't see them; state them here, gat
   regex) silently skips whatever its parser doesn't cover — other languages, template files,
   dynamically-constructed or namespace imports, string-literal references — so a clean
   compile/type-check afterward is NOT proof the change is complete. Verify the edges by hand.
+- **Memory files are written with the Write and Edit tools only**, never by a shell command or script,
+  so the memory hooks see them. *(Enforced by the project-memory add-on's PreToolUse hook, when
+  installed: a shell command that writes into a memory directory is denied; reading and deleting pass.)*
 - **Scratch stays project-local.** Project artifacts — renders, reports, intermediate output — go in a
   project-local `.tmp/` (gitignored), never committed and never dumped loose in system `/tmp`. (A
   harness-provided scratchpad, when one is given, is the exception for ephemeral session files.)

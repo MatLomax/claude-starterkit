@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Project memory with a stray `.git`:** Claude Code takes any `.git` entry as a repository root, even one git itself rejects, so a stray `.git` (a folder holding only `info/exclude`, as an editor hook left in `~/Projects`) made every folder under it without its own repository share one memory, and the hook linked that shared memory into the stray root. The hook now checks the root as git does (a valid `HEAD`, `objects/` and `refs/`, following a `.git` file's `gitdir`) and also flags a repository in the home directory. For either it links nothing, warns at session start, and denies a `Write` or `Edit` into that memory with a reason telling the assistant to tell the user, so nothing is saved where it would be stranded once the `.git` is removed. A `.git` that is a directory junction no longer counts as a root, as in Claude Code.
+- **Project memory written by a shell command:** such a write skipped the `Write`/`Edit` hook, so the first memory could land in the per-path directory. The project-memory PreToolUse hook now also matches `Bash|PowerShell` and denies a command that writes into a memory directory (any `.claude/memory`, or a per-path `<config dir>/projects/<name>/memory`): a redirect or `tee` into one, `sed -i`, `mv`, `cp` to one, `find -delete`/`-exec`, `Set-Content`/`Out-File`, and any interpreter or remote shell whose code names one. Reading and deleting pass. `CLAUDE.starterkit.md` §10 states the rule.
+
 ## [0.7.0] - 2026-09-29
 
 ### Added

@@ -156,10 +156,11 @@ a session starts:
 { "hooks": [ { "type": "command", "command": "py -3 C:/Users/YOU/.claude/hooks/project-memory.py" } ] }
 ```
 
-and this one to the `PreToolUse` array, so the first memory saved lands in the project:
+and this one to the `PreToolUse` array, so the first memory saved lands in the project and a shell
+command cannot write one unseen:
 
 ```json
-{ "matcher": "Write|Edit", "hooks": [ { "type": "command", "command": "py -3 C:/Users/YOU/.claude/hooks/project-memory.py" } ] }
+{ "matcher": "Write|Edit|Bash|PowerShell", "hooks": [ { "type": "command", "command": "py -3 C:/Users/YOU/.claude/hooks/project-memory.py" } ] }
 ```
 
 - `attribution` (empty `commit`/`pr`, `sessionUrl:false`) suppresses AI attribution on commits/PRs.

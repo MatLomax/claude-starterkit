@@ -79,6 +79,24 @@ jobs:
           printf '{"hook_event_name": "PreToolUse", "cwd": "%s/sub", "tool_name": "Write", "tool_input": {"file_path": "%s/MEMORY.md"}}' "$repo" "$link" |
             CLAUDE_PROJECT_DIR="$repo/sub" python3 "$CLAUDE_CONFIG_DIR/hooks/project-memory.py"
           test "$(readlink "$link")" = "$repo/.claude/memory"
+          # A stray .git (not a repository) above the session: a warning, no link, and memory writes denied.
+          stray="$RUNNER_TEMP/pm stray"
+          mkdir -p "$stray/.git/info" "$stray/sub"
+          out=$(printf '{"hook_event_name": "SessionStart", "cwd": "%s/sub"}' "$stray" |
+            CLAUDE_PROJECT_DIR="$stray/sub" python3 "$CLAUDE_CONFIG_DIR/hooks/project-memory.py")
+          case "$out" in *"is not a git repository (no HEAD)"*) ;; *) echo "no stray .git warning: $out"; exit 1 ;; esac
+          slink="$CLAUDE_CONFIG_DIR/projects/$(printf '%s' "$stray" | tr -c 'a-zA-Z0-9' '-')/memory"
+          out=$(printf '{"hook_event_name": "PreToolUse", "tool_name": "Write", "tool_input": {"file_path": "%s/a.md"}}' "$slink" |
+            CLAUDE_PROJECT_DIR="$stray/sub" python3 "$CLAUDE_CONFIG_DIR/hooks/project-memory.py")
+          case "$out" in *'"permissionDecision": "deny"'*) ;; *) echo "stray .git memory write not denied: $out"; exit 1 ;; esac
+          test ! -e "$slink" && test ! -e "$stray/.claude"
+          # A shell command writing into a memory directory is denied; reading passes.
+          out=$(printf '{"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "echo x > %s/a.md"}}' "$link" |
+            python3 "$CLAUDE_CONFIG_DIR/hooks/project-memory.py")
+          case "$out" in *'"permissionDecision": "deny"'*) ;; *) echo "shell memory write not denied: $out"; exit 1 ;; esac
+          out=$(printf '{"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "cat %s/a.md"}}' "$link" |
+            python3 "$CLAUDE_CONFIG_DIR/hooks/project-memory.py")
+          test -z "$out"
           grep -qx '/.claude/memory/' "$repo/.git/info/exclude"
 
           # ripwire through its own official installer, in a sandboxed HOME (Linux only: its
@@ -137,8 +155,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "installer exited $LASTEXITCODE" }
           $pm = @((Get-Content (Join-Path $env:CLAUDE_CONFIG_DIR "settings.json") -Raw | ConvertFrom-Json).hooks.SessionStart | ForEach-Object { $_.hooks } | Where-Object { $_.command -match 'project-memory\.py' })
           if ($pm.Count -ne 1) { throw "-WithProjectMemory wired $($pm.Count) SessionStart project-memory hooks, want 1" }
-          $pre = @((Get-Content (Join-Path $env:CLAUDE_CONFIG_DIR "settings.json") -Raw | ConvertFrom-Json).hooks.PreToolUse | Where-Object { $_.matcher -eq "Write|Edit" } | ForEach-Object { $_.hooks } | Where-Object { $_.command -match 'project-memory\.py' })
-          if ($pre.Count -ne 1) { throw "-WithProjectMemory wired $($pre.Count) Write|Edit project-memory hooks, want 1" }
+          $pre = @((Get-Content (Join-Path $env:CLAUDE_CONFIG_DIR "settings.json") -Raw | ConvertFrom-Json).hooks.PreToolUse | Where-Object { $_.matcher -eq "Write|Edit|Bash|PowerShell" } | ForEach-Object { $_.hooks } | Where-Object { $_.command -match 'project-memory\.py' })
+          if ($pre.Count -ne 1) { throw "-WithProjectMemory wired $($pre.Count) PreToolUse project-memory hooks, want 1" }
           $repo = Join-Path $env:RUNNER_TEMP "pm repo"
           git init -q $repo
           $name = ($repo -replace '[^a-zA-Z0-9]', '-')
@@ -154,6 +172,22 @@ jobs:
           if ($link.LinkType -ne "Junction") { throw "memory dir is not a junction ($($link.LinkType)); hook said: $out" }
           if ((Resolve-Path $link.Target).Path -ne (Resolve-Path (Join-Path $repo ".claude\memory")).Path) { throw "junction points at $($link.Target)" }
           if (-not (Select-String -Path (Join-Path $repo ".git\info\exclude") -SimpleMatch "/.claude/memory/" -Quiet)) { throw "memory dir not excluded from git" }
+          # A stray .git (not a repository) above the session: a warning, no link, and memory writes denied.
+          $stray = Join-Path $env:RUNNER_TEMP "pm stray"
+          New-Item -ItemType Directory -Force -Path (Join-Path $stray ".git\info"), (Join-Path $stray "sub") | Out-Null
+          $env:CLAUDE_PROJECT_DIR = "$stray\sub"
+          $out = @{ hook_event_name = "SessionStart"; cwd = "$stray\sub" } | ConvertTo-Json -Compress | cmd /c $pm[0].command
+          if ($out -notmatch 'is not a git repository \(no HEAD\)') { throw "no stray .git warning: $out" }
+          $slink = Join-Path $env:CLAUDE_CONFIG_DIR ("projects\" + ($stray -replace '[^a-zA-Z0-9]', '-') + "\memory")
+          $out = @{ hook_event_name = "PreToolUse"; tool_name = "Write"; tool_input = @{ file_path = "$slink\a.md" } } | ConvertTo-Json -Compress | cmd /c $pre[0].command
+          if ($out -notmatch '"permissionDecision": "deny"') { throw "stray .git memory write not denied: $out" }
+          if ((Test-Path $slink) -or (Test-Path (Join-Path $stray ".claude"))) { throw "stray .git: something was linked or created" }
+          Remove-Item Env:CLAUDE_PROJECT_DIR
+          # A PowerShell command writing into a memory directory is denied; reading passes.
+          $out = @{ hook_event_name = "PreToolUse"; tool_name = "PowerShell"; tool_input = @{ command = "Set-Content -Path $linkPath\a.md -Value x" } } | ConvertTo-Json -Compress | cmd /c $pre[0].command
+          if ($out -notmatch '"permissionDecision": "deny"') { throw "PowerShell memory write not denied: $out" }
+          $out = @{ hook_event_name = "PreToolUse"; tool_name = "PowerShell"; tool_input = @{ command = "Get-Content $linkPath\a.md" } } | ConvertTo-Json -Compress | cmd /c $pre[0].command
+          if ($out) { throw "PowerShell memory read denied: $out" }
           # ripwire has no Windows installer: naming it fails, after the core install still ran.
           $env:CLAUDE_CONFIG_DIR = Join-Path $env:RUNNER_TEMP "claude3"
           & ([scriptblock]::Create((irm "$env:STARTERKIT_BASE_URL/install.ps1"))) -Plugins ripwire

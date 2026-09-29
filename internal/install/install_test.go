@@ -169,7 +169,8 @@ func TestSettingsFreshInstall(t *testing.T) {
 
 // The project-memory hook is wired only when its add-on is chosen, and then once per event: a
 // SessionStart hook with no matcher, so it runs however the session starts, and a PreToolUse hook on
-// Write|Edit, so the first memory saved lands in the project.
+// Write|Edit|Bash|PowerShell, so the first memory saved lands in the project and a shell command
+// cannot write one unseen.
 func TestProjectMemoryHookOnlyWhenChosen(t *testing.T) {
 	o := opts(t, false)
 	cmd := o.hookCommand("project-memory.py")
@@ -189,7 +190,7 @@ func TestProjectMemoryHookOnlyWhenChosen(t *testing.T) {
 		}
 	}
 	hv, _ := settingsOf(t, o).Get("hooks")
-	want := map[string]string{"SessionStart": "", "PreToolUse": "Write|Edit"}
+	want := map[string]string{"SessionStart": "", "PreToolUse": "Write|Edit|Bash|PowerShell"}
 	for ev, matcher := range want {
 		groups, _ := hv.(*ojson.Object).Get(ev)
 		found := false

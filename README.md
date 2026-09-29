@@ -94,7 +94,7 @@ does not undo or stop the rest of the install.
   `<project>/.claude/memory/`, so every path the project is opened from (an sshfs mount and the
   machine it lives on, a second clone location) shares one memory. The project is the git repo
   (excluded from git through `.git/info/exclude`), or outside a repo the directory the session
-  starts in. It wires `project-memory.py` (SessionStart, and PreToolUse on `Write|Edit`): Claude
+  starts in. It wires `project-memory.py` (SessionStart, and PreToolUse on `Write|Edit|Bash|PowerShell`): Claude
   Code keeps auto memory under `~/.claude/projects/<path-derived name>/memory/`, and
   `autoMemoryDirectory` accepts only an absolute path, so the hook links that directory to the
   project's (a symlink; a junction on Windows). The project's directory is created only when the
@@ -104,7 +104,12 @@ does not undo or stop the rest of the install.
   leaves alone a per-path directory that is already a link (one pointing elsewhere was made on
   purpose), or whose files clash with the project's by name, saying so; and it does nothing when
   `autoMemoryDirectory` is set or the project is your home directory (`~/.claude/memory/` is Claude
-  Code's own). The installer offers it via a prompt that **defaults to no**; opt
+  Code's own). Claude Code takes any `.git` as a repository root, so a stray one (a `.git` git
+  itself rejects, such as a folder holding only `info/exclude`) or a repository in your home
+  directory makes every folder under it share one memory: the hook then links nothing, warns at
+  session start, and denies memory writes until it is removed. A shell command that writes into a
+  memory directory is denied too (reading and deleting pass), so memories go through `Write` and
+  `Edit`, which the hook sees. The installer offers it via a prompt that **defaults to no**; opt
   in with `--with-project-memory` / `-WithProjectMemory`, or `STARTERKIT_PROJECT_MEMORY=1`.
   The link relies on how Claude Code names the per-path directory and on when it loads memory,
   neither of which is documented: if a release changes either, memory falls back to the per-path
