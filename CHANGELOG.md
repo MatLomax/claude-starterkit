@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **No dangerous `rm`.** `CLAUDE.starterkit-git.md` §8 bans `rm -r` / `rm -rf`, glob deletes and `rm` on a variable- or substitution-built path: only a single file the assistant created may be removed, by its literal path, and anything larger is listed for the user to remove.
+- **No `rm` on a variable-built path.** `CLAUDE.starterkit-git.md` §8 bans `rm` on a path built from a variable or a command substitution (`rm -rf "$DIR/"`, `rm $(...)`, `xargs rm`), where one empty or bad expansion widens the delete to `/`, `~` or the whole tree; paths are written out literally. Removing a directory by literal path stays fine inside the project or where the user sanctioned it.
 
 ## [0.7.2] - 2026-09-29
 
