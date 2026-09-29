@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
-"""Wait for a GitHub Actions run to change, then print its state and exit.
+"""Wait for a GitHub Actions run to finish, then print its state and exit.
 
 Not a hook: a helper for waiting on CI. It checks the run with HTTP GETs (`gh api`: the run, then
-its jobs) every INTERVAL seconds and returns as soon as the run's state changes: the run's status or
-conclusion, or a job finishing. A run that has already finished returns at once. When nothing
-changes it stops at the timeout, which bounds the whole wait, API calls included.
+its jobs) every INTERVAL seconds and returns only when the run has finished, or on an error. A run
+that has already finished returns at once. The timeout bounds the whole wait, API calls included; a
+run that has not finished by then is an error.
 
     gh-run-wait.py RUN            RUN is a run URL (https://github.com/O/R/actions/runs/ID[/...])
     gh-run-wait.py RUN -R O/R     or a run ID with its repo
-    options: --interval N (seconds between checks, default 15), --timeout N (seconds, default 300)
+    options: --interval N (seconds between checks, default 15), --timeout N (seconds, default 21600)
 
 Exit codes: 0 the run finished successfully, 1 the run finished with any other conclusion,
-3 the run changed and is still going, 124 nothing changed before the timeout, 2 a usage or API error.
+2 a usage or API error, or the run not finished before the timeout.
 """
 import argparse
 import json
@@ -45,7 +45,6 @@ def snapshot(repo, run_id, deadline):
     jobs = api(f"repos/{repo}/actions/runs/{run_id}/jobs?per_page=100", left()).get("jobs", [])
     return {
         "run": (run.get("status"), run.get("conclusion")),
-        "jobs": {j["id"]: j.get("conclusion") for j in jobs if j.get("status") == "completed"},
         "all_jobs": [(j["name"], j.get("status"), j.get("conclusion")) for j in jobs],
         "url": run.get("html_url", ""),
     }
@@ -62,11 +61,11 @@ def main():
     for stream in (sys.stdout, sys.stderr):  # job names can hold characters a Windows codepage lacks
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8", errors="replace")
-    p = argparse.ArgumentParser(description="Wait for a GitHub Actions run to change.", allow_abbrev=False)
+    p = argparse.ArgumentParser(description="Wait for a GitHub Actions run to finish.", allow_abbrev=False)
     p.add_argument("run", help="run URL, or run ID with -R")
     p.add_argument("-R", "--repo", help="OWNER/REPO, when RUN is an ID")
     p.add_argument("--interval", type=int, default=15)
-    p.add_argument("--timeout", type=int, default=300)
+    p.add_argument("--timeout", type=int, default=21600)
     a = p.parse_args()
 
     m = URL.match(a.run)
@@ -81,17 +80,15 @@ def main():
 
     deadline = time.monotonic() + a.timeout
     try:
-        first = snapshot(repo, run_id, deadline)
+        now = snapshot(repo, run_id, deadline)
     except Exception as e:
         fail(str(e))
-    now = first
     errors = 0
-    while now["run"][0] != "completed" and (now["run"], now["jobs"]) == (first["run"], first["jobs"]):
+    while now["run"][0] != "completed":
         left = deadline - time.monotonic()
         if left <= 0:
             report(now)
-            print(f"no change in {a.timeout}s")
-            sys.exit(124)
+            fail(f"the run did not finish within {a.timeout}s")
         time.sleep(min(a.interval, left))
         try:
             now = snapshot(repo, run_id, deadline)
@@ -102,10 +99,7 @@ def main():
                 fail(f"3 checks in a row failed: {e}")
 
     report(now)
-    status, conclusion = now["run"]
-    if status != "completed":
-        sys.exit(3)
-    sys.exit(0 if conclusion == "success" else 1)
+    sys.exit(0 if now["run"][1] == "success" else 1)
 
 
 if __name__ == "__main__":

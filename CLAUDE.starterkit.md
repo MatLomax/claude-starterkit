@@ -460,9 +460,9 @@ project's surfaces and suite. A global hook can't see them; state them here, gat
   sleep, and a guard is not a puzzle:** `timeout N tail -f /dev/null`, `read -t N`, `ping localhost`,
   a busy loop, or any other form picked because the sleep-guard does not catch it, is banned exactly as
   `sleep` is. Waiting on a GitHub Actions run uses `python3 ~/.claude/hooks/gh-run-wait.py <run URL>`
-  (`py -3` on Windows) in the background: it checks the run with HTTP GETs, returns when the run
-  changes or after at most 5 minutes, and is re-run while the run is still going. The sleep-guard
-  holds it to that: background only, one direct call, `--timeout` at most 300, `--interval` at least 10.
+  (`py -3` on Windows) in the background: it checks the run with HTTP GETs and returns only when the
+  run finishes (or on an error), so it is run once per wait. The sleep-guard holds it to that:
+  background only, one direct call, `--timeout` at most 21600, `--interval` at least 10.
   It is the one sanctioned script that sleeps; using it for anything but waiting on that run, or
   writing another, is a disguised delay. Other external state that a tool can block on uses that tool's
   own blocking wait, run in the background (`kubectl wait`, `docker wait`); only state with no such

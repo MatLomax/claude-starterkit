@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.4] - 2026-09-29
+
+### Fixed
+
+- **`gh-run-wait.py` returns only when the run finishes.** It no longer exits on every change to a still-running run (exit 3) or after 5 quiet minutes (exit 124), each of which had to be re-run; it waits until the run completes and exits 0 finished green, 1 finished otherwise, or 2 on a usage or API error or when the run has not finished before `--timeout`, whose default is now 21600 seconds (6 hours, GitHub's maximum job runtime). `hooks/sleep-guard.py` raises the helper's `--timeout` limit from 300 to 21600 to match, and `CLAUDE.starterkit.md` §10 and `README.md` describe one background run per wait. A background wait costs no tokens, so the one long call replaces the repeated 5-minute re-runs.
+
 ## [0.7.3] - 2026-09-29
 
 ### Added

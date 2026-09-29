@@ -23,7 +23,7 @@ inside a script file the command runs.
 gh-run-wait.py, the helper the deny message names for waiting on a GitHub Actions run, is the one
 sanctioned sleeping script, and this guard sets its limits: it runs only in the background (in the
 foreground it is sleep-then-check polling), as one direct call per command with literal arguments,
-at most 5 minutes (`--timeout` up to 300) and checking at most every 10 seconds (`--interval` 10 or
+at most 6 hours (`--timeout` up to 21600) and checking at most every 10 seconds (`--interval` 10 or
 more). Using it for anything but waiting on that run, or writing another sleeping script, is a
 disguised delay. Recognising a run is fail-closed: the whole command is tokenized in one pass (so a
 multi-line quoted commit message stays one word), and a segment with a word whose last path
@@ -97,7 +97,7 @@ def sleeps(cmd):
 
 
 HELPER = "gh-run-wait.py"
-MAX_TIMEOUT, MIN_INTERVAL = 300, 10
+MAX_TIMEOUT, MIN_INTERVAL = 21600, 10
 # a word that mentions the helper as a file name (not test_gh-run-wait.py, not gh-run-wait.pyc)
 HELPER_MENTION = re.compile(r"(?<![\w.-])gh-run-wait\.py(?!\.?[\w-])", re.IGNORECASE)
 # commands that read, copy or print a file but cannot run it (PowerShell's too; names are lowercased)
@@ -473,7 +473,7 @@ def helper_verdict(cmd, background, helper, powershell=False):
     usage = f"`python3 {helper} <run URL>` (`py -3` on Windows)"
     if not background:
         return (
-            "Blocked: gh-run-wait.py waits on a GitHub Actions run for up to 5 minutes, so it runs only "
+            "Blocked: gh-run-wait.py waits on a GitHub Actions run until it finishes, so it runs only "
             f"in the background: run {usage} with run_in_background: true and END YOUR TURN; its exit "
             "wakes you. In the foreground it is sleep-then-check polling. (Reading, copying or committing "
             "the file with git, grep, cat, head, tail, ls, cp and the like passes, as does --help; any "
@@ -483,15 +483,15 @@ def helper_verdict(cmd, background, helper, powershell=False):
         return (
             f"Blocked: run gh-run-wait.py as one direct call per command, {usage} with literal "
             "arguments: not inside a loop, a function, a wrapper, another shell or a second call, so "
-            "each wait stays at most 5 minutes. It is the one sanctioned sleeping script; using it for "
+            "each wait stays at most 6 hours. It is the one sanctioned sleeping script; using it for "
             "anything but waiting on that run is a disguised delay."
         )
     problem = argument_problem(calls[0].args)
     if problem:
         return (
-            f"Blocked: gh-run-wait.py {problem}. It waits at most 5 minutes (--timeout up to "
+            f"Blocked: gh-run-wait.py {problem}. It waits at most 6 hours (--timeout up to "
             f"{MAX_TIMEOUT}) and checks at most every {MIN_INTERVAL} seconds (--interval {MIN_INTERVAL} "
-            "or more); run it again while the run is still going."
+            "or more), and returns only when the run finishes or on an error."
         )
     return None
 
