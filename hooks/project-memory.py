@@ -17,7 +17,9 @@ The project's memory directory is created only when the first memory is saved:
 - PreToolUse on a Write or Edit into the default directory creates <project>/.claude/memory/, moves
   anything already there into it and links the default directory before the write runs, so the first
   memory lands in the project.
-In a git repository the target is also added to the repository's .git/info/exclude.
+In a git repository the target is also added to the repository's .git/info/exclude. PreToolUse on
+Bash and PowerShell adds it too when the project's memory is linked, so a repository created or
+cloned during a session excludes its memory from the next shell command on, before a `git add`.
 
 PreToolUse on Bash and PowerShell denies a command that writes into a memory directory (any
 .claude/memory, or a per-path <config dir>/projects/<name>/memory) instead of only reading it: memory
@@ -466,6 +468,22 @@ def deny(reason):
                                    "permissionDecisionReason": reason}}
 
 
+def exclude_linked(data):
+    """Add the exclude line for a linked project memory in a git repository that lacks it."""
+    try:
+        found = locate(data)
+        if found is None:
+            return
+        root, is_git, problem = found
+        if not is_git or problem:
+            return
+        link = os.path.join(config_dir(), "projects", project_name(root), "memory")
+        if is_link(link) and os.path.isdir(os.path.join(root, ".claude", "memory")):
+            ensure_excluded(root)
+    except OSError:
+        pass
+
+
 def main():
     """The hook's JSON output, or None."""
     try:
@@ -477,7 +495,10 @@ def main():
     tool_input = data.get("tool_input") or {}
     if event == "PreToolUse" and tool in ("Bash", "PowerShell"):
         reason = shell_verdict(tool_input.get("command") or "", tool == "PowerShell")
-        return deny(reason) if reason else None
+        if reason:
+            return deny(reason)
+        exclude_linked(data)
+        return None
 
     found = locate(data)
     if found is None:

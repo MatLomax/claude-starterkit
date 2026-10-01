@@ -435,6 +435,10 @@ project's surfaces and suite. A global hook can't see them; state them here, gat
 - **Memory files are written with the Write and Edit tools only**, never by a shell command or script,
   so the memory hooks see them. *(Enforced by the project-memory add-on's PreToolUse hook, when
   installed: a shell command that writes into a memory directory is denied; reading and deleting pass.)*
+  A project's `.claude/memory/` is never committed. It is kept out through `.git/info/exclude`
+  (`/.claude/memory/`), not `.gitignore`, and the project-memory hook adds that line. After a
+  `git init` or `git clone` in a folder that already holds memories, check the line is there before
+  the first commit.
 - **Scratch stays project-local.** Project artifacts — renders, reports, intermediate output — go in a
   project-local `.tmp/` (gitignored), never committed and never dumped loose in system `/tmp`. (A
   harness-provided scratchpad, when one is given, is the exception for ephemeral session files.)

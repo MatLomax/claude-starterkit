@@ -98,6 +98,12 @@ jobs:
             python3 "$CLAUDE_CONFIG_DIR/hooks/project-memory.py")
           test -z "$out"
           grep -qx '/.claude/memory/' "$repo/.git/info/exclude"
+          # A repository created during a session: the next shell command adds the exclude line.
+          : > "$repo/.git/info/exclude"
+          out=$(printf '{"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "git status"}}' |
+            CLAUDE_PROJECT_DIR="$repo/sub" python3 "$CLAUDE_CONFIG_DIR/hooks/project-memory.py")
+          test -z "$out"
+          grep -qx '/.claude/memory/' "$repo/.git/info/exclude"
 
           # ripwire through its own official installer, in a sandboxed HOME (Linux only: its
           # prebuilt binaries cover Linux and Apple-silicon macOS, and this keeps CI to one run).

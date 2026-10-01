@@ -93,7 +93,8 @@ does not undo or stop the rest of the install.
   [auto memory](https://code.claude.com/docs/en/memory#auto-memory) inside the project, in
   `<project>/.claude/memory/`, so every path the project is opened from (an sshfs mount and the
   machine it lives on, a second clone location) shares one memory. The project is the git repo
-  (excluded from git through `.git/info/exclude`), or outside a repo the directory the session
+  (excluded from git through `.git/info/exclude`, which the hook keeps in place, including for a repo
+  created or cloned during a session), or outside a repo the directory the session
   starts in. It wires `project-memory.py` (SessionStart, and PreToolUse on `Write|Edit|Bash|PowerShell`): Claude
   Code keeps auto memory under `~/.claude/projects/<path-derived name>/memory/`, and
   `autoMemoryDirectory` accepts only an absolute path, so the hook links that directory to the

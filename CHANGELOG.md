@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **A repository created during a session excludes its project memory before the first commit.** The project-memory hook added `/.claude/memory/` to `.git/info/exclude` only at session start and on the first memory write, so a `git init` or `git clone` in a project that already held memories left them untracked but not ignored until the next session, where a first commit could pick them up. PreToolUse on `Bash` and `PowerShell` now adds the line whenever the project's memory is linked and the repository lacks it, so it is in place from the shell command after the `git init` on. `CLAUDE.starterkit.md` §10 states that a project's memory is never committed and is kept out through `.git/info/exclude`, and says to check the line after a `git init` or `git clone` in a folder that already holds memories.
+
 ## [0.7.5] - 2026-09-29
 
 ### Changed
